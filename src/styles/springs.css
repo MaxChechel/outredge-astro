@@ -1,0 +1,38 @@
+/* ==========================================================================
+   GENERATED FILE — do not edit by hand.
+
+   Produced by scripts/springs/generate.mjs. Change the stiffness/damping
+   parameters there and run `npm run springs`.
+
+   This file carries CURVES ONLY. The tokens that point at them live in the
+   motion block of src/styles/global.css, alongside every other token, because:
+
+     · `@theme` in global.css resets `--ease-*: initial`, and an `@import` must
+       precede it — so any --ease-* declared HERE is wiped by that reset. The
+       reset cannot move after the import; @import has to come first.
+     · Lightning CSS deletes linear() from @theme anyway (trap 1 above).
+
+   Adding a spring is therefore two edits: add it to SPRINGS below, run
+   `npm run springs`, then add its pointer in global.css. The second edit is
+   deliberate, exactly like adding a @utility for a new colour token.
+   ========================================================================== */
+
+:root {
+  /* Default character. Hovers, colour and transform transitions, accordion and disclosure opens.
+     k=236 c=27.6 m=1 → damping ratio ζ=0.898, settles in 400ms over 21 stops. */
+  --spring-soft: linear(0, 0.0057 1.8%, 0.0226 3.7%, 0.0514 5.8%, 0.0922 8.1%, 0.1814 12.25%, 0.4779 24.8%, 0.5632 28.85%, 0.6377 32.8%, 0.6953 36.25%, 0.7467 39.75%, 0.7919 43.3%, 0.8316 46.95%, 0.8741 51.7%, 0.909 56.7%, 0.9375 62.1%, 0.9598 67.95%, 0.9763 74.3%, 0.9882 81.5%, 0.996 89.95%, 1);
+
+  /* One visible overshoot. Reveals, anything that should read as arriving rather than fading in.
+     k=841 c=39.4 m=1 → damping ratio ζ=0.679, settles in 280ms over 24 stops. */
+  --spring-snappy: linear(0, 0.0018 0.75%, 0.007 1.5%, 0.0283 3.1%, 0.0635 4.8%, 0.1149 6.7%, 0.2279 10.1%, 0.5943 20.05%, 0.6972 23.25%, 0.7828 26.3%, 0.8531 29.25%, 0.911 32.2%, 0.9585 35.25%, 0.9956 38.4%, 1.0216 41.5%, 1.0401 44.85%, 1.0508 48.45%, 1.0546 52.45%, 1.0489 59%, 1.0195 74.15%, 1.0075 82.4%, 0.9992 93.25%, 0.9974 99.95%, 1);
+}
+
+/* Engines without linear() easing get a hand-fitted approximation; all that is
+   lost is the overshoot. An @supports override rather than a repeated
+   declaration, because Lightning CSS dedupes repeats (trap 2 above). */
+@supports not (transition-timing-function: linear(0, 1)) {
+  :root {
+    --spring-soft: cubic-bezier(0.22, 0.68, 0.28, 1);
+    --spring-snappy: cubic-bezier(0.16, 0.9, 0.22, 1);
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "extends": "astro/tsconfigs/strict",
+
+  // `exclude` REPLACES TypeScript's defaults rather than extending them. Omit
+  // "node_modules" here and every dependency gets type-checked: `astro check`
+  // then runs for minutes, times out, and reports a clean pass on the partial
+  // output it managed to print. That is a green result from a broken harness,
+  // and this project has paid for it once already. Keep node_modules listed.
+  "include": [".astro/types.d.ts", "**/*"],
+  "exclude": ["node_modules", "dist", ".astro"],
+
+  "compilerOptions": {
+    "strictNullChecks": true,
+    "allowJs": true,
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] }
+  }
+}

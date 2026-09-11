@@ -1,0 +1,21 @@
+# build output
+dist/
+.astro/
+
+# dependencies
+node_modules/
+
+# local env
+.env
+.env.production
+.dev.vars
+
+# verification artifacts (the harness is committed; its output is not)
+.verify/
+
+# macOS
+.DS_Store
+
+# editor
+.vscode/
+.idea/

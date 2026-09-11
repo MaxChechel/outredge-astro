@@ -1,0 +1,53 @@
+---
+import '../styles/global.css';
+import { canonicalUrl } from '../lib/urls';
+
+const canonical = canonicalUrl(Astro.url.pathname, Astro.site);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>outredge-system</title>
+    <link rel="canonical" href={canonical} />
+  </head>
+  <body>
+    <main id="main" class="container-main pt-section-nav pb-section-lg flex flex-col gap-lg">
+      <p class="text-eyebrow">Phase 0</p>
+      <h1 class="text-h1 text-primary">Tokens and scaffold</h1>
+      <p class="text-lede text-secondary measure">
+        The component kit, the styleguide and the verification harness land in
+        the phases after this one.
+      </p>
+
+      <!-- Utility smoke test: every semantic role, both themes, the card
+           pattern, a spring transition and a reveal hook. -->
+      <div data-theme="dark" class="bg-base border-line rounded-md border p-md">
+        <div class="bg-surface border-line rounded-md border p-md">
+          <p class="text-body text-primary">surface / primary</p>
+          <p class="text-body-sm text-secondary">secondary</p>
+          <p class="text-caption text-tertiary">tertiary</p>
+          <a href="#main" class="text-body-sm text-accent">accent link</a>
+          <span class="bg-accent text-on-accent rounded-sm px-sm py-3xs text-caption">on accent</span>
+          <input class="bg-subtle border-line-strong mt-sm w-full rounded-sm border px-sm py-xs" />
+          <button class="border-line-strong ease-spring-soft duration-slow mt-sm rounded-sm border px-md py-xs transition-colors">
+            spring hover
+          </button>
+        </div>
+      </div>
+
+      <div data-reveal class="bg-subtle rounded-md p-md">
+        <p class="text-body-sm text-secondary">reveal hook</p>
+      </div>
+
+      <div class="prose">
+        <h2>Prose sample</h2>
+        <p>Body copy inside <code>.prose</code>, capped at the measure.</p>
+        <ul><li>One</li><li>Two</li></ul>
+        <blockquote>A quotation.</blockquote>
+      </div>
+    </main>
+  </body>
+</html>
