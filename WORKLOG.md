@@ -223,3 +223,182 @@ group separately, each with its own count.
    because amendment 12 specifies the mechanism, not just the outcome.
 
 **Phase 0 complete. Stopping for review.**
+
+---
+
+## 2026-09-11 — Entry 2. Rulings 1–5 applied
+
+All five closed as ruled. Nothing to add on Q2 (`--spacing-*`) — already shipped
+that way.
+
+- **Q3 → spec updated, deviation retired.** `ARCHITECTURE.md` §2 and §12.1 name
+  `--transition-duration-*` as the real namespace, so it is the rule rather than a
+  departure from one.
+- **Q4 → accent stays a real colour**, and is recorded as a deliberate improvement
+  on the brief rather than a liberty: the reference site is monochrome by design,
+  and a starter whose accent resolves to `--text-primary` looks correct with the
+  accent wiring completely broken. The starter is the one artefact whose job is to
+  exercise everything. Both values carry `/* PROJECT: replace */`, which is now a
+  stated convention — the marker is what the README retheme checklist greps for —
+  and the ramp's first step carries it too, since it is the same swap surface.
+- **Q5 → the dedupe behaviour is documented in `global.css`** next to the pointer
+  note, generalised: *any two-declaration fallback written anywhere in this file is
+  a fallback that will not ship.*
+
+**Inputs.** `styleguide-mock-v2.html` arrived and is the basis for Phase 1. The
+native reveal module has not; per the ruling, everything else is built and the
+reveal hooks are left dormant — see Entry 3.
+
+---
+
+## 2026-09-11 — Entry 3. Phase 1: component kit + styleguide
+
+### Provenance
+
+| file | provenance | note |
+| --- | --- | --- |
+| `src/components/Section.astro` | genericized | Same shape and same `<Tag>` ruling; container utilities replace `max-w-*`, `reveal` added, `theme` widened to include dark. |
+| `atoms/Button.astro` | genericized | Same API. Variants rewritten onto the accent/line tokens; sizes now use control-height tokens rather than optical padding tuned to one typeface. |
+| `atoms/TextLink.astro` | genericized | The reference's open fidelity question (underline in border colour vs currentColor) is settled here: line colour at rest, accent on hover. |
+| `atoms/VisuallyHidden.astro`, `atoms/JsonLd.astro` | ported | Unchanged but for comments. |
+| `atoms/FormField.astro` | genericized | Rewritten to §4.1: the reference wrapped its control in the label; the spec asks for explicit `for`/`id` plus `aria-describedby`, which a wrapping label cannot give the error. Border moved to `--line-strong` (WCAG 1.4.11). |
+| `atoms/Logo.astro` | new | Placeholder wordmark, drawn rather than set in type so it carries no font dependency. |
+| `atoms/ClientLogo.astro` | genericized | Kept the viewBox→`aspect-ratio` derivation verbatim; that bug is expensive and already paid for. Slug union replaced by `string` + a build-time throw, since a starter cannot know client names. |
+| `blocks/SectionHeader.astro` | genericized | Reference version was welded to one page's layout (a bordered two-column band with its own `px-gutter`, which is a §4.4 violation). Rebuilt as eyebrow + heading + lede with stacked/split layouts and no gutter of its own. |
+| `blocks/Faq.astro` | genericized | Same `::details-content` technique, now spring-eased. |
+| `blocks/CtaBanner.astro` | genericized | **Now a block, not a Section** — see deviations. |
+| `blocks/LogoStrip.astro` | genericized | Including the reference's reconciliation ruling that the label is a `<p>`. |
+| `blocks/ItemCard.astro` | new | The card pattern's worked example. |
+| `mdx/Figure.astro`, `mdx/Lede.astro`, `mdx/index.ts` | genericized | |
+| `mdx/Clip.astro` | genericized | Ported whole, including every media rule. Not rendered — see deviations. |
+| `scripts/clips.ts` | ported | Byte-identical. |
+| `scripts/disclosure.ts` | new | No equivalent in the reference. |
+| `shells/BaseLayout.astro` | genericized | Fonts and favicons are commented placeholder slots; og:image is optional rather than required-with-a-default. |
+| `shells/Nav.astro` | genericized | Same one-source-of-truth links and the same `<details>` mobile menu; the dropdown group is new. |
+| `shells/Footer.astro` | genericized | Now a Section, so it gets the container from the same place Nav and Section do. |
+| `content.config.ts`, `lib/items.ts`, `content/items/*` | new | The CMS-shaped demo collection and its adapter. |
+| `scripts/verify/lib/contrast.mjs` | new | Shared by the styleguide and (Phase 2) the contrast check. |
+| `src/pages/_styleguide.astro` | new | Structure and annotation density from `styleguide-mock-v2.html`, extended per the brief. |
+
+### Two more silent-failure bugs
+
+**4. An `as` prop on a leaf component silently discards its entire `Props` type.**
+`CtaBanner` declared `as?: 'h2' | 'h3'` and rendered literal elements — no
+`<Tag>`, no dynamic tag anywhere. `astro check` typed it as `IntrinsicAttributes`
+with no `& Props`, which means **every prop on that component stopped being
+checked**. Bisected to the prop NAME: renaming `as` → `headingLevel` restored
+`IntrinsicAttributes & Props` with no other change. Verified in both directions
+with a deliberate bogus prop.
+
+§4.2's dynamic-tag caveat already reserved `<Tag>` for Section; it turns out the
+name has to be reserved too, and §4.2's own vocabulary (`headingLevel`) was the
+right one all along. `SectionHeader` was renamed as well — it had not tripped the
+bug, but it was a landmine. ARCHITECTURE §4.2 amended. Only `Section` uses `as`.
+
+**5. The §9 sweep reports phantom overflow offenders for every closed
+`<details>`.** At 390px the sweep flagged five mobile-menu links overflowing to
+x=443 on a 390px viewport — while `scrollWidth === clientWidth`, i.e. no actual
+overflow. Cause: a closed `<details>` hides its contents through
+`content-visibility`, which skips them from rendering and from the document's
+scroll extent but leaves `getBoundingClientRect()` returning their last laid-out
+geometry. Opening the menu: zero overflowing elements, `scrollWidth` still 390.
+
+The reference's sweep has no `checkVisibility()` filter, so it would report these
+on any site with a mobile menu. Added to ARCHITECTURE §9 and implemented in the
+sweep used below; Phase 2 ports it into `scripts/verify/`.
+
+### Two a11y findings, both in the styleguide's own furniture
+
+axe found both; both are worth recording because the page's job is to demonstrate
+the rules it was breaking.
+
+1. **Ramp swatch labels used `mix-blend-mode: difference`** over white — which axe
+   cannot evaluate at all and which genuinely fails on the mid-ramp. Replaced by
+   choosing black or white per swatch at build time with the same
+   `contrastRatio()` the matrix uses, plus a build-time throw if neither clears AA
+   on some swatch (which would be a ramp problem, not a label problem).
+2. **`.sg-matrix-ratio` had `opacity: 0.8`**, which knocked the
+   tertiary-on-`bg-subtle` cell — the tightest pair in the light theme at 5.14:1 —
+   below 4.5. The page that exists to prove the contrast rule was failing it, by
+   ad-hoc alpha, which is the exact thing §2.3 bans in markup. Removed; the note
+   in the CSS says why.
+
+### Decisions and deviations
+
+**CtaBanner is a block, not a Section.** The reference version wrapped its own
+`<Section>`, which meant a page could not place it anywhere but full-width at the
+foot — precisely the layout decision §4.4 keeps out of blocks. It now renders no
+rhythm and no container; a page wraps it like anything else. Its `theme` prop
+makes it a themed island, which is the one-attribute theme swap doing real work.
+
+**`Figure` and `Clip` live in `src/components/mdx/`, not `blocks/`.** The brief's
+Phase 1 list groups them under Blocks; ARCHITECTURE §4.2 says explicitly that they
+are not blocks but content vocabulary, reachable only from an MDX body (§4.5).
+ARCHITECTURE is law, so it wins. Flagging the discrepancy rather than silently
+choosing.
+
+**`Clip` ships but is not rendered.** No video ships with the starter —
+`VIDEO_BASE` is a per-project decision, and `ffmpeg` is not on this machine to
+fabricate one. Rendering it would mean a deliberate broken media reference in a
+repo whose whole point is that references are verified. The component and its
+module are complete and ported; the first project with real media exercises them.
+The brief's Phase 3 JS census language ("only where rendered") already allows for
+this. See question Q6.
+
+**The reveal system is dormant, per the ruling.** `Section`'s `reveal` prop sets
+`data-reveal-group` on the inner container and nothing else. It deliberately does
+NOT set `data-reveal`, because global.css hands `[data-reveal]` `opacity: 0` and
+there is nothing on the page able to turn it back on. Verified in `dist`: two
+`data-reveal-group` attributes, zero `data-reveal` attributes. The CSS contract,
+the stagger custom property and the no-JS fallback are all in place; wiring is
+adding `data-reveal` to children and the `.js` one-liner to `BaseLayout` — and
+that one-liner must be blocking in `<head>`, not deferred, or every revealed
+element paints visible and then snaps to hidden.
+
+**The styleguide gate is an injected route, not a `noindex`.** `_styleguide.astro`
+is underscore-prefixed so Astro never routes it; a small integration in
+`astro.config.mjs` injects `/styleguide` for `astro dev` and for
+`INCLUDE_STYLEGUIDE=1`. A production build emits nothing for it — no orphan HTML,
+nothing in a sitemap. `noindex` is a request; not existing is a fact.
+
+**The contrast matrix on the page is computed, not written.** It reads
+`global.css` through a `?raw` import and the shared `scripts/verify/lib/contrast.mjs`
+— the same module Phase 2's check will run against `dist`. Hand-written ratios go
+stale the first time someone nudges a primitive. (`readFileSync` does not work
+here: frontmatter is bundled before it runs, so `import.meta.url` points into
+`dist/.prerender/`. Cost me one build.)
+
+**The styleguide's chrome is a scoped `<style>` in the page, not in global.css.**
+A starter whose global stylesheet carries its own documentation furniture ships
+that furniture to every client project.
+
+### Measured
+
+- `astro check`: **0 errors, 0 warnings, 0 hints.**
+- Sweep at 320/360/390/430/768/1024/1440 across both pages:
+  **14 page/width checks, 0 failures** — no overflow, exactly one `h1` each, zero
+  heading skips, every image with dimensions and alt.
+- axe-core (wcag2a/aa, 21a/aa, 22aa, best-practice) at 390 and 1440 across both
+  pages: **4 page/width runs, 0 violations.**
+- **JavaScript: one module, 659 B raw / 347 B gzipped** — the nav disclosure,
+  inlined by Astro, so `dist` contains **zero `.js` files**. Under the brief's
+  ~1 KB class. The `application/ld+json` block is data, not script, and is
+  excluded by type. The Clip module ships in source and is on no page.
+- CSS: **31,144 B raw / 7,403 B gzipped**, identical in both builds (the
+  styleguide uses no utility a page does not).
+- Pages: `index.html` 17,179 B / 4,415 B gz; `styleguide.html` 94,573 B /
+  15,361 B gz — the styleguide is deliberately the densest page the system will
+  ever render.
+
+### Open questions
+
+6. **`Clip` is unexercised.** Options: leave as is (the first real project
+   exercises it); or add a ~100 KB placeholder MP4 to `public/videos/` so the
+   starter demonstrates it end to end. I lean to leaving it — video in git is what
+   `VIDEO_BASE` exists to avoid — but it does mean a ported module nothing has run.
+7. **The placeholder wordmark reads as a word.** The drawn letterforms come out
+   looking like "loredge". It is marked `PROJECT: replace` and having real wordmark
+   proportions in the nav is useful, but say if you want something obviously
+   abstract instead.
+
+**Phase 1 complete. Stopping for review.**

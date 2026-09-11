@@ -1,0 +1,45 @@
+---
+import Logo from '../atoms/Logo.astro';
+import { footerLinks, site } from '../../data/navigation';
+import Section from '../Section.astro';
+
+/**
+ * Site footer (§4.3).
+ *
+ * A Section with `as="footer"` — so it gets the same container, the same theme
+ * mechanism and the same vertical rhythm as every other band on the page, and
+ * its links align to `--site-margin` exactly like the nav logo above them.
+ * Nothing here sets its own gutter.
+ */
+const year = new Date().getFullYear();
+---
+
+<Section as="footer" space="lg" class="border-line bg-subtle border-t">
+  <div class="gap-lg md:gap-xl flex flex-col md:flex-row md:items-start md:justify-between">
+    <div class="gap-sm flex flex-col md:basis-1/3">
+      <Logo class="w-nav-logo text-primary" title={site.name} />
+      <p class="text-body-sm text-tertiary">{site.description}</p>
+    </div>
+
+    <nav aria-label="Footer">
+      <ul class="list-bare gap-sm flex flex-wrap md:flex-col md:items-end">
+        {
+          footerLinks.map(({ href, label }) => (
+            <li>
+              <a
+                href={href}
+                class="text-body-sm text-secondary hover:text-primary transition-colors duration-spring-soft ease-spring-soft"
+              >
+                {label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+
+  <p class="text-caption text-tertiary border-line mt-xl pt-md border-t">
+    &copy; {year} {site.name}
+  </p>
+</Section>

@@ -1,0 +1,17 @@
+---
+/**
+ * Structured data (§4.1).
+ *
+ * An atom despite painting nothing: indivisible and context-free is the test,
+ * not whether it renders. `application/ld+json` is data rather than executable
+ * script, so it does not count against the JavaScript budget in §6 and the JS
+ * census excludes it by type.
+ */
+interface Props {
+  schema: Record<string, unknown>;
+}
+
+const { schema } = Astro.props as Props;
+---
+
+<script type="application/ld+json" set:html={JSON.stringify(schema)} is:inline />

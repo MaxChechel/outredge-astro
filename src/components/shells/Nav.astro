@@ -1,0 +1,179 @@
+---
+import Logo from '../atoms/Logo.astro';
+import Button from '../atoms/Button.astro';
+import { navigation, isGroup, site } from '../../data/navigation';
+import { canonicalPath } from '../../lib/urls';
+
+/**
+ * Site navigation (§4.3).
+ *
+ * ONE NAV TREE means one source of truth for the links — `src/data/navigation.ts`
+ * — not one DOM node rendered twice. The desktop bar and the mobile panel are
+ * structurally different on purpose, because the interaction is: a dropdown is a
+ * button-and-panel disclosure on desktop, and on mobile the same group FOLDS
+ * INTO the menu as a labelled sub-list with no extra JavaScript at all. What is
+ * forbidden is two hand-maintained link lists, which is how one of them goes
+ * stale.
+ *
+ * The mobile menu is a native <details>/<summary>: keyboard-operable, announced
+ * correctly, and zero JS. The burger morph is CSS.
+ *
+ * The desktop dropdown is a disclosure, NEVER hover-only — `<button
+ * aria-expanded>` toggling a panel, Escape closing and returning focus, outside
+ * press closing, focus leaving the group closing it. src/scripts/disclosure.ts
+ * is the single delegated module that owns all of them.
+ *
+ * Horizontal alignment comes from the container primitive, the same one Section
+ * and Footer use, which is what makes the logo line up with every heading and
+ * every footer link down the page edge.
+ */
+const here = canonicalPath(Astro.url.pathname);
+
+/** `aria-current="page"` is the accessible half; the styling hangs off it too. */
+const isCurrent = (href: string): boolean => {
+  if (href.startsWith('/#') || href.startsWith('#')) return false;
+  return here === canonicalPath(href);
+};
+
+const groupIsCurrent = (links: readonly { href: string }[]): boolean => links.some((l) => isCurrent(l.href));
+
+const linkClass =
+  'text-body-sm text-secondary transition-colors duration-spring-soft ease-spring-soft ' +
+  'hover:text-primary aria-[current=page]:text-primary';
+---
+
+<a href="#main" class="skip-link text-body-sm">Skip to main content</a>
+
+<!-- The rule under the nav spans the full viewport; the container starts inside
+     it, so the hairline is not interrupted by the gutter. -->
+<header class="border-line bg-base sticky top-0 z-40 border-b">
+  <div class="container-main">
+    <nav aria-label="Main" class="h-nav gap-md flex items-center justify-between">
+      <a
+        href="/"
+        class="w-nav-logo inline-flex items-center rounded-sm"
+        aria-label={`${site.name} — home`}
+        aria-current={here === '/' ? 'page' : undefined}
+      >
+        <Logo class="w-full" />
+      </a>
+
+      <!-- Desktop bar. Hidden below lg, where the disclosure takes over. -->
+      <ul class="list-bare gap-lg hidden items-center lg:flex">
+        {
+          navigation.map((item) =>
+            isGroup(item) ? (
+              <li class="relative" data-disclosure-group>
+                <button
+                  type="button"
+                  id={item.id}
+                  data-disclosure
+                  aria-expanded="false"
+                  aria-controls={`${item.id}-panel`}
+                  class:list={[
+                    linkClass,
+                    'gap-xs flex cursor-pointer items-center rounded-sm',
+                    // A group whose panel contains the current page reads as
+                    // active, but the TRIGGER never takes aria-current: it is a
+                    // button, not a link, and aria-current on it would announce
+                    // a page that is not there. The link inside carries it.
+                    groupIsCurrent(item.links) && 'text-primary',
+                  ]}
+                >
+                  {item.label}
+                  <span class="nav-caret" aria-hidden="true" />
+                </button>
+
+                <div id={`${item.id}-panel`} class="nav-panel bg-surface border-line p-sm rounded-md border" aria-labelledby={item.id}>
+                  <ul class="list-bare gap-3xs grid">
+                    {item.links.map((link) => (
+                      <li>
+                        <a
+                          href={link.href}
+                          class="nav-panel-link px-sm py-xs gap-3xs flex flex-col rounded-sm"
+                          aria-current={isCurrent(link.href) ? 'page' : undefined}
+                        >
+                          <span class="text-body-sm text-primary">{link.label}</span>
+                          {link.description && <span class="text-caption text-tertiary">{link.description}</span>}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </li>
+            ) : (
+              <li>
+                <a href={item.href} class={linkClass} aria-current={isCurrent(item.href) ? 'page' : undefined}>
+                  {item.label}
+                </a>
+              </li>
+            ),
+          )
+        }
+      </ul>
+
+      <div class="hidden lg:block">
+        <Button href={site.contactHref} variant="secondary" size="sm">Contact</Button>
+      </div>
+
+      <!-- Mobile disclosure. Same links, folded: a group becomes a labelled
+           sub-list rather than a second disclosure, so the panel costs no JS. -->
+      <details class="nav-disclosure lg:hidden">
+        <summary
+          class="h-control-md w-control-md border-line flex cursor-pointer list-none items-center justify-center rounded-sm border"
+        >
+          <span class="sr-only">Menu</span>
+          <span class="nav-burger" aria-hidden="true"></span>
+        </summary>
+
+        <!-- Full-bleed band, container inside it: the panel's links land on the
+             same gutter line as the logo above them. -->
+        <div class="border-line bg-base absolute inset-x-0 top-full border-y">
+          <div class="container-main py-lg">
+          <ul class="list-bare gap-md flex flex-col">
+            {
+              navigation.map((item) =>
+                isGroup(item) ? (
+                  <li class="gap-sm flex flex-col">
+                    <p class="text-eyebrow">{item.label}</p>
+                    <ul class="list-bare gap-sm border-line pl-sm flex flex-col border-l">
+                      {item.links.map((link) => (
+                        <li>
+                          <a
+                            href={link.href}
+                            class="text-h6 text-secondary aria-[current=page]:text-primary"
+                            aria-current={isCurrent(link.href) ? 'page' : undefined}
+                          >
+                            {link.label}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </li>
+                ) : (
+                  <li>
+                    <a
+                      href={item.href}
+                      class="text-h6 text-primary"
+                      aria-current={isCurrent(item.href) ? 'page' : undefined}
+                    >
+                      {item.label}
+                    </a>
+                  </li>
+                ),
+              )
+            }
+            <li class="pt-xs">
+              <Button href={site.contactHref} variant="secondary" size="sm">Contact</Button>
+            </li>
+          </ul>
+          </div>
+        </div>
+      </details>
+    </nav>
+  </div>
+</header>
+
+<script>
+  import '../../scripts/disclosure';
+</script>

@@ -1,0 +1,41 @@
+---
+import { Image } from 'astro:assets';
+
+/**
+ * A body image (§4.5).
+ *
+ * Content vocabulary, not a block: only ever reachable from an MDX body. Goes
+ * through `astro:assets`, so width/height are emitted (no CLS) and the source
+ * is responsive-resized. `alt` is required by the type — §7's "non-null alt,
+ * always" is enforced at compile time, not at review.
+ */
+interface Props {
+  /** Filename, with extension, under src/assets/items/. */
+  src: string;
+  alt: string;
+  caption?: string;
+  class?: string;
+}
+
+const { src, alt, caption, class: className } = Astro.props as Props;
+
+const images = import.meta.glob<{ default: ImageMetadata }>(
+  '../../assets/items/*.{avif,webp,png,jpg,jpeg}',
+  { eager: true },
+);
+const entry = images[`../../assets/items/${src}`];
+if (!entry) throw new Error(`Figure: no image at src/assets/items/${src}`);
+---
+
+<figure class:list={['gap-sm flex flex-col', className]}>
+  <Image
+    src={entry.default}
+    alt={alt}
+    widths={[640, 1024, 1440]}
+    sizes="(min-width: 62rem) 60vw, 92vw"
+    loading="lazy"
+    decoding="async"
+    class="border-line w-full rounded-md border"
+  />
+  {caption && <figcaption class="text-caption text-tertiary">{caption}</figcaption>}
+</figure>

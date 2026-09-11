@@ -1,53 +1,79 @@
 ---
-import '../styles/global.css';
-import { canonicalUrl } from '../lib/urls';
+/**
+ * Home — the starter's own front page.
+ *
+ * Kept deliberately thin. It exists to show the page grammar (§4.4) with nothing
+ * else in the way: a stack of Sections, atoms and blocks inside, no spacing
+ * decisions, no containers, no spacer divs. A client project replaces it.
+ */
+import BaseLayout from '../components/shells/BaseLayout.astro';
+import Section from '../components/Section.astro';
+import SectionHeader from '../components/blocks/SectionHeader.astro';
+import Button from '../components/atoms/Button.astro';
+import TextLink from '../components/atoms/TextLink.astro';
+import CtaBanner from '../components/blocks/CtaBanner.astro';
+import ItemCard from '../components/blocks/ItemCard.astro';
+import { getItems } from '../lib/items';
+import { site } from '../data/navigation';
 
-const canonical = canonicalUrl(Astro.url.pathname, Astro.site);
+const items = await getItems();
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>outredge-system</title>
-    <link rel="canonical" href={canonical} />
-  </head>
-  <body>
-    <main id="main" class="container-main pt-section-nav pb-section-lg flex flex-col gap-lg">
-      <p class="text-eyebrow">Phase 0</p>
-      <h1 class="text-h1 text-primary">Tokens and scaffold</h1>
-      <p class="text-lede text-secondary measure">
-        The component kit, the styleguide and the verification harness land in
-        the phases after this one.
+<BaseLayout title={`${site.name} — the Astro starter`} description={site.description}>
+  <Section spaceTop="nav" spaceBottom="lg">
+    <div class="gap-lg flex flex-col items-start">
+      <SectionHeader
+        eyebrow="Starter"
+        heading="A page is a stack of Sections."
+        headingLevel="h1"
+        size="h1"
+        lede="Section owns all vertical rhythm, the container and the theme. Everything below it composes with grid, flex, gap and the token vocabulary — and nothing below it re-applies a gutter, a max-width or a page centre."
+        split
+      />
+      <div class="gap-sm flex flex-wrap">
+        <Button href="/styleguide" variant="primary" icon="arrow">Open the styleguide</Button>
+        <Button href="#pattern" variant="secondary">The card pattern</Button>
+      </div>
+    </div>
+  </Section>
+
+  <Section id="pattern" space="lg" class="bg-subtle">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="The card pattern"
+        heading="A card is a recipe, not a component"
+        lede="bg-surface + border-line + rounded-md + padding from the spacing scale. Project cards are instantiations of it; they never invent their own surface, border or radius treatment."
+        split
+      />
+      <div class="gap-md grid sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => <ItemCard item={item} />)}
+      </div>
+    </div>
+  </Section>
+
+  <Section id="about" space="lg" width="narrow">
+    <div class="prose">
+      <h2>What this repo is</h2>
+      <p>
+        The reference implementation of the Outredge dev system for Astro marketing sites. Client projects begin
+        as a copy of it: replace the primitive ramp and the accent with the brand's values, run{' '}
+        <code>npm run verify</code> — the contrast matrix is what says whether the rebrand is shippable — then
+        replace the fonts, the logo and the collections.
       </p>
+      <p>
+        The rules live in <TextLink href="https://github.com">ARCHITECTURE.md</TextLink>, and{' '}
+        <code>src/styles/global.css</code> is the single source of truth for every token. Each layer there opens
+        with its rule and the trap that rule exists to avoid.
+      </p>
+    </div>
+  </Section>
 
-      <!-- Utility smoke test: every semantic role, both themes, the card
-           pattern, a spring transition and a reveal hook. -->
-      <div data-theme="dark" class="bg-base border-line rounded-md border p-md">
-        <div class="bg-surface border-line rounded-md border p-md">
-          <p class="text-body text-primary">surface / primary</p>
-          <p class="text-body-sm text-secondary">secondary</p>
-          <p class="text-caption text-tertiary">tertiary</p>
-          <a href="#main" class="text-body-sm text-accent">accent link</a>
-          <span class="bg-accent text-on-accent rounded-sm px-sm py-3xs text-caption">on accent</span>
-          <input class="bg-subtle border-line-strong mt-sm w-full rounded-sm border px-sm py-xs" />
-          <button class="border-line-strong ease-spring-soft duration-slow mt-sm rounded-sm border px-md py-xs transition-colors">
-            spring hover
-          </button>
-        </div>
-      </div>
-
-      <div data-reveal class="bg-subtle rounded-md p-md">
-        <p class="text-body-sm text-secondary">reveal hook</p>
-      </div>
-
-      <div class="prose">
-        <h2>Prose sample</h2>
-        <p>Body copy inside <code>.prose</code>, capped at the measure.</p>
-        <ul><li>One</li><li>Two</li></ul>
-        <blockquote>A quotation.</blockquote>
-      </div>
-    </main>
-  </body>
-</html>
+  <Section id="contact" space="lg" spaceBottom="lg">
+    <CtaBanner
+      theme="dark"
+      heading="Start here"
+      body="Copy the template, swap the primitives, verify, ship."
+      primary={{ label: 'Open the styleguide', href: '/styleguide' }}
+    />
+  </Section>
+</BaseLayout>

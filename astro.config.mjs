@@ -2,6 +2,39 @@
 import { defineConfig, svgoOptimizer } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 
+/**
+ * The styleguide route, gated out of production builds.
+ *
+ * src/pages/_styleguide.astro is underscore-prefixed, so Astro never routes it
+ * on its own. This integration injects it for `astro dev` and for a build run
+ * with INCLUDE_STYLEGUIDE=1 (`npm run build:styleguide`, which is what the
+ * verification harness is pointed at).
+ *
+ * A gate, not a `noindex`: a production build emits NOTHING for this route — no
+ * orphan HTML, nothing in the sitemap, nothing to leak the internals of a client
+ * project. `noindex` is a request; not existing is a fact.
+ */
+/** @returns {import('astro').AstroIntegration} */
+function styleguideRoute() {
+  const enabled = process.env.INCLUDE_STYLEGUIDE === '1';
+  return {
+    name: 'outredge:styleguide-route',
+    hooks: {
+      'astro:config:setup': ({ command, injectRoute, logger }) => {
+        if (command !== 'dev' && !enabled) {
+          logger.info('styleguide: route omitted (set INCLUDE_STYLEGUIDE=1 to include it)');
+          return;
+        }
+        injectRoute({
+          pattern: '/styleguide',
+          entrypoint: new URL('./src/pages/_styleguide.astro', import.meta.url).pathname,
+        });
+        logger.info('styleguide: route injected at /styleguide');
+      },
+    },
+  };
+}
+
 // https://astro.build/config
 export default defineConfig({
   // REPLACE PER PROJECT. Required: canonical URLs, og:url and the sitemap are
@@ -16,6 +49,8 @@ export default defineConfig({
   // /work/index.html and serve /work/ with a trailing slash instead.
   // src/lib/urls.ts normalizes the ".html" back out of canonical URLs.
   build: { format: 'file' },
+
+  integrations: [styleguideRoute()],
 
   vite: {
     plugins: [tailwindcss()],

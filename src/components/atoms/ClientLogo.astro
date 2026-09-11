@@ -1,0 +1,58 @@
+---
+/**
+ * A third-party wordmark, inlined as SVG (§4.1).
+ *
+ * Inlined, not `<img src="…svg">`: an <img> is a separate document, so
+ * `currentColor` inside it resolves against its own root and the mark stops
+ * following the theme. Inlining is also what lets `svgoOptimizer()` (see
+ * astro.config.mjs) strip the full-precision Figma path data that otherwise
+ * dominates a page's bytes.
+ *
+ * Sizing, the hard-won part: Astro emits the source `width`/`height` on the
+ * <svg>, and with `width: auto` alongside a `max-width` Chrome collapses the box
+ * to a square — every mark renders at the cap height and letterboxes its glyph
+ * inside. Setting an explicit `aspect-ratio` read from the viewBox makes the
+ * width derive from the height deterministically.
+ *
+ * PROJECT: replace the marks in src/assets/clients/ and narrow `slug` from
+ * `string` to a union of the real filenames — the throw below is the runtime
+ * net, a union is the compile-time one.
+ */
+const logos = import.meta.glob<{ default: unknown }>('../../assets/clients/*.svg', { eager: true });
+const sources = import.meta.glob<string>('../../assets/clients/*.svg', {
+  eager: true,
+  query: '?raw',
+  import: 'default',
+});
+
+interface Props {
+  /** Filename without extension under src/assets/clients/. */
+  slug: string;
+  /** Accessible name. Omit for decorative use inside an already-labelled block. */
+  title?: string;
+  class?: string;
+}
+
+const { slug, title, class: className } = Astro.props as Props;
+
+const key = `../../assets/clients/${slug}.svg`;
+const entry = logos[key];
+if (!entry) {
+  throw new Error(`ClientLogo: no SVG for "${slug}". Expected src/assets/clients/${slug}.svg.`);
+}
+const Mark = entry.default as any;
+
+const viewBox = /viewBox="0 0 ([\d.]+) ([\d.]+)"/.exec(sources[key] ?? '');
+if (!viewBox) {
+  throw new Error(`ClientLogo: "${slug}" has no parsable viewBox; cannot derive its aspect ratio.`);
+}
+const ratio = `${viewBox[1]} / ${viewBox[2]}`;
+---
+
+<Mark
+  class:list={['client-logo', className]}
+  style={`aspect-ratio: ${ratio};`}
+  role={title ? 'img' : 'presentation'}
+  aria-label={title}
+  aria-hidden={title ? undefined : 'true'}
+/>

@@ -1,0 +1,1084 @@
+---
+/**
+ * /styleguide — the system's visual test surface.
+ *
+ * ENV-GATED. The filename is underscore-prefixed so Astro does not route it;
+ * astro.config.mjs injects the route only for `astro dev` and for a build run
+ * with INCLUDE_STYLEGUIDE=1. A production build emits nothing for it — not a
+ * noindex page, not an orphan HTML file, nothing.
+ *
+ * This page is deliberately the densest thing the system will ever render: every
+ * token, every component, both themes, at once. That is the point — it is what
+ * `npm run verify` is pointed at, so a regression anywhere in the system shows
+ * up on one page rather than on whichever client page happened to use the
+ * broken thing.
+ */
+import cssSource from '../styles/global.css?raw';
+import BaseLayout from '../components/shells/BaseLayout.astro';
+import Section from '../components/Section.astro';
+import Button from '../components/atoms/Button.astro';
+import TextLink from '../components/atoms/TextLink.astro';
+import FormField from '../components/atoms/FormField.astro';
+import Logo from '../components/atoms/Logo.astro';
+import VisuallyHidden from '../components/atoms/VisuallyHidden.astro';
+import JsonLd from '../components/atoms/JsonLd.astro';
+import SectionHeader from '../components/blocks/SectionHeader.astro';
+import Faq from '../components/blocks/Faq.astro';
+import CtaBanner from '../components/blocks/CtaBanner.astro';
+import LogoStrip from '../components/blocks/LogoStrip.astro';
+import ItemCard from '../components/blocks/ItemCard.astro';
+import { getItems } from '../lib/items';
+import {
+  parseThemeScopes,
+  textMatrix,
+  accentMatrix,
+  lineMatrix,
+  resolveColor,
+  contrastRatio,
+  AA,
+} from '../../scripts/verify/lib/contrast.mjs';
+
+/* The matrix below is COMPUTED, at build time, from the same global.css the page
+   is styled by — and by the same module scripts/verify/contrast.mjs uses against
+   the built CSS. Hand-written ratios in a styleguide go stale the first time
+   someone nudges a primitive, and a stale ratio is worse than no ratio.
+ *
+ * `?raw` rather than readFileSync: the frontmatter is bundled before it runs, so
+ * `import.meta.url` points at a chunk in dist/.prerender/ and the relative path
+ * resolves to nothing. A `?raw` import is inlined by Vite at build time, which
+ * is the only way to read a source file from a component that will be bundled. */
+const scopes = parseThemeScopes(cssSource);
+const text = textMatrix(scopes);
+const accent = accentMatrix(scopes);
+const lines = lineMatrix(scopes);
+const textFailures = text.filter((r) => !r.pass).length;
+
+const themes = ['light', 'dark'] as const;
+const BACKGROUNDS = ['--bg-base', '--bg-subtle', '--bg-surface'] as const;
+const TEXTS = ['--text-primary', '--text-secondary', '--text-tertiary'] as const;
+const cell = (theme: string, bg: string, t: string) =>
+  text.find((r) => r.theme === theme && r.bg === bg && r.text === t)!;
+
+/* Primitive ramp, read out of the same file.
+ *
+ * The step label's colour is CHOSEN PER SWATCH by the same contrast function the
+ * matrix uses — whichever of black or white clears AA against that swatch. The
+ * obvious alternative, white text under `mix-blend-mode: difference`, is what
+ * this page shipped first: it looks fine, axe cannot evaluate it at all, and on
+ * the mid-ramp it genuinely fails. A styleguide that demonstrates the contrast
+ * rule must not break it in its own furniture. */
+const ramp = [...scopes.root.keys()]
+  .filter((k) => /^--gray-\d+$/.test(k))
+  .map((k) => {
+    const value = scopes.root.get(k)!;
+    const onBlack = contrastRatio('#000000', value);
+    const onWhite = contrastRatio('#ffffff', value);
+    return {
+      name: k,
+      value,
+      step: Number(k.replace('--gray-', '')),
+      label: onBlack >= onWhite ? '#000000' : '#ffffff',
+      labelRatio: Math.max(onBlack, onWhite),
+    };
+  })
+  .sort((a, b) => a.step - b.step);
+/* If this ever throws, a swatch is so mid-grey that neither black nor white
+   clears AA on it — which is a ramp problem, not a label problem. */
+const rampLabelFloor = Math.min(...ramp.map((r) => r.labelRatio));
+if (rampLabelFloor < AA) {
+  throw new Error(`Ramp swatch labels cannot clear AA: floor is ${rampLabelFloor.toFixed(2)}:1`);
+}
+
+const accents = [
+  { name: '--accent-500', value: scopes.root.get('--accent-500')!, note: 'light theme' },
+  { name: '--accent-300', value: scopes.root.get('--accent-300')!, note: 'dark theme' },
+];
+
+const SEMANTIC_ROLES: Record<string, string> = {
+  '--bg-base': 'page ground',
+  '--bg-subtle': 'secondary ground',
+  '--bg-surface': 'cards / raised',
+  '--text-primary': 'text · headings & body',
+  '--text-secondary': 'text · supporting',
+  '--text-tertiary': 'text · meta & captions',
+  '--accent': 'accent · text, fill, border',
+  '--accent-contrast': 'the only legal text on accent',
+  '--line': 'dividers & card edges',
+  '--line-strong': 'interactive control boundary',
+};
+const semanticTokens = Object.keys(SEMANTIC_ROLES);
+
+/* Type sizes and their default role mapping (§2.1). */
+const TYPE_ROLES = [
+  { token: '--text-4xl', style: 'text-h1', role: 'h1', sample: 'Heading one' },
+  { token: '--text-3xl', style: 'text-h2', role: 'h2', sample: 'Heading two' },
+  { token: '--text-2xl', style: 'text-h3', role: 'h3', sample: 'Heading three' },
+  { token: '--text-xl', style: 'text-h4', role: 'h4', sample: 'Heading four' },
+  { token: '--text-lg', style: 'text-h5', role: 'h5', sample: 'Heading five' },
+  { token: '--text-md', style: 'text-h6', role: 'h6 · and the lede step', sample: 'Heading six' },
+  { token: '--text-md', style: 'text-lede', role: 'lede', sample: 'Lede — the opening paragraph.' },
+  { token: '--text-base', style: 'text-body', role: 'body', sample: 'Body — the default reading size.' },
+  { token: '--text-sm', style: 'text-body-sm', role: 'body-sm', sample: 'Small body — dense UI copy.' },
+  { token: '--text-sm', style: 'text-caption', role: 'caption', sample: 'Caption — figure captions, meta.' },
+  { token: '--text-xs', style: 'text-eyebrow', role: 'eyebrow', sample: 'Eyebrow label' },
+];
+
+const SPACING_STEPS = ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl'];
+const SECTION_STEPS = ['section-sm', 'section-md', 'section-lg', 'nav'];
+
+const faqItems = [
+  {
+    question: 'Why native <details> rather than an accordion script?',
+    answer: [
+      'It is keyboard-operable, announced as a disclosure, and findable by in-page search, with zero JavaScript.',
+      'The open/close is still spring-eased — through ::details-content, which is the only box in a <details> that can be transitioned.',
+    ],
+  },
+  {
+    question: 'Why is the card not a component?',
+    answer: [
+      'Because the cards a project ships share no structure — different elements, different internal grids, different interaction. A common parent would be a bordered div, which is a class, not a component.',
+    ],
+  },
+];
+
+const demoLogos = [
+  { name: 'Mark One', slug: 'mark-one' },
+  { name: 'Mark Two', slug: 'mark-two' },
+  { name: 'Mark Three', slug: 'mark-three' },
+];
+
+const items = await getItems();
+
+const INDEX = [
+  ['01', 'color', 'Colour tokens'],
+  ['02', 'contrast', 'Contrast matrix'],
+  ['03', 'type', 'Type sizes'],
+  ['04', 'spacing', 'Spacing scale'],
+  ['05', 'layout', 'Layout & gutters'],
+  ['06', 'section', 'Section'],
+  ['07', 'atoms', 'Atoms'],
+  ['08', 'blocks', 'Blocks & the card pattern'],
+  ['09', 'nav', 'Nav dropdown'],
+  ['10', 'motion', 'Motion'],
+  ['11', 'prose', 'Prose'],
+  ['12', 'collection', 'Demo collection'],
+];
+---
+
+<BaseLayout title="Styleguide · outredge-system" description="Every token and component in the system, annotated." noindex>
+  <!-- ===================================================================
+       HEADER
+       =================================================================== -->
+  <Section as="header" spaceTop="nav" spaceBottom="sm">
+    <div class="gap-md flex flex-col">
+      <div class="gap-md flex flex-wrap items-baseline justify-between">
+        <div class="gap-3xs flex flex-col">
+          <h1 class="text-h2">Styleguide</h1>
+          <p class="sg-meta">outredge-system · internal · env-gated out of production builds</p>
+        </div>
+        <p class="sg-meta">
+          contrast matrix: {text.length}/{text.length - textFailures} passing at {AA}:1
+        </p>
+      </div>
+
+      <nav aria-label="Styleguide sections">
+        <ul class="list-bare gap-x-md gap-y-2xs flex flex-wrap">
+          {
+            INDEX.map(([num, id, label]) => (
+              <li>
+                <a href={`#${id}`} class="sg-index-link">
+                  <span class="sg-mono">{num}</span> {label}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </nav>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       01 COLOUR
+       =================================================================== -->
+  <Section id="color" space="md">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="01 · colour"
+        heading="Colour tokens"
+        lede="Primitives are not a vocabulary — they are not in the --color-* namespace, so bg-gray-500 does not compile. The semantic layer below is the only thing components touch, and each token is exposed by one @utility in its legal role only."
+        split
+      />
+
+      <div class="gap-sm flex flex-col">
+        <p class="sg-meta">
+          Primitive ramp — even CIE L* steps, constant low cool chroma.
+          <strong class="text-primary">PROJECT: replace.</strong> The retheme checklist greps for that marker.
+        </p>
+        <ul class="border-line list-bare grid grid-cols-5 overflow-hidden rounded-md border md:grid-cols-15">
+          {
+            ramp.map((swatch) => (
+              <li class="sg-swatch" style={`background:${swatch.value}`}>
+                <span class="sg-swatch-label" style={`color:${swatch.label}`}>{swatch.step}</span>
+              </li>
+            ))
+          }
+        </ul>
+        <ul class="list-bare gap-sm flex flex-wrap">
+          {
+            accents.map((a) => (
+              <li class="border-line gap-xs px-sm py-xs flex items-center rounded-sm border">
+                <span class="sg-chip" style={`background:${a.value}`} />
+                <span class="sg-mono">{a.name}</span>
+                <span class="sg-meta">{a.value} · {a.note}</span>
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <!-- Side-by-side theme panels. IDENTICAL MARKUP; only [data-theme] differs. -->
+      <div class="gap-md grid md:grid-cols-2">
+        {
+          themes.map((theme) => (
+            <div data-theme={theme} class="bg-base border-line p-md gap-sm flex flex-col rounded-md border">
+              <p class="sg-meta">
+                {theme === 'light' ? '[data-theme] absent → light' : '[data-theme="dark"] → designed, not inverted'}
+              </p>
+              <ul class="list-bare gap-2xs flex flex-col">
+                {semanticTokens.map((token) => (
+                  <li class="bg-surface border-line gap-x-sm gap-y-3xs px-sm py-xs flex flex-wrap items-center rounded-sm border">
+                    <span class="sg-chip border-line border" style={`background:${resolveColor(scopes, theme, token)}`} />
+                    <span class="sg-mono grow whitespace-nowrap">{token}</span>
+                    <span class="sg-meta grow text-right">{SEMANTIC_ROLES[token]}</span>
+                  </li>
+                ))}
+              </ul>
+              <p class="sg-meta">
+                Grounds ascend on dark — base → subtle → surface — because there is no perceptual room below a
+                near-black page ground. Surface is lighter than base in <em>both</em> themes; it is subtle's
+                direction that flips.
+              </p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       02 CONTRAST MATRIX
+       =================================================================== -->
+  <Section id="contrast" space="md" class="bg-subtle">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="02 · contrast"
+        heading="Contrast matrix — enforced by verify"
+        lede="Every text token on every background in every theme. Computed at build time from global.css by the same module npm run verify runs against dist — hand-written ratios go stale the first time someone nudges a primitive."
+        split
+      />
+
+      <div class="gap-md grid lg:grid-cols-2">
+        {
+          themes.map((theme) => (
+            <div data-theme={theme} class="bg-base border-line p-md gap-sm flex flex-col rounded-md border">
+              <p class="sg-meta">
+                {theme} · 9 pairs · floor{' '}
+                {Math.min(...text.filter((r) => r.theme === theme).map((r) => r.ratio)).toFixed(2)}:1
+              </p>
+              <div class="overflow-x-auto" tabindex="0" role="region" aria-label={`${theme} theme contrast matrix`}>
+                <table class="sg-matrix">
+                  <thead>
+                    <tr>
+                      <th scope="col"><VisuallyHidden>Text token</VisuallyHidden></th>
+                      {BACKGROUNDS.map((bg) => <th scope="col">{bg.replace('--bg-', '')}</th>)}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {TEXTS.map((t) => (
+                      <tr>
+                        <th scope="row">{t.replace('--text-', '')}</th>
+                        {BACKGROUNDS.map((bg) => {
+                          const r = cell(theme, bg, t);
+                          return (
+                            <td style={`background:${r.bgHex};color:${r.textHex}`}>
+                              <span class="sg-matrix-sample">Aa</span>
+                              <span class="sg-matrix-ratio">
+                                {r.ratio.toFixed(2)} {r.pass ? '✓' : '✕'}
+                              </span>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+
+      <div class="gap-md grid md:grid-cols-2">
+        <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+          <p class="sg-meta">Accent group · {accent.length} pairs, {accent.filter((r) => !r.pass).length} failing</p>
+          <ul class="list-bare gap-3xs flex flex-col">
+            {
+              accent.map((r) => (
+                <li class="sg-mono gap-sm flex items-baseline justify-between">
+                  <span>{r.theme} · {r.text.replace('--', '')} on {r.bg.replace('--', '')}</span>
+                  <span class={r.pass ? 'text-secondary' : 'text-accent'}>{r.ratio.toFixed(2)}</span>
+                </li>
+              ))
+            }
+          </ul>
+        </div>
+        <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+          <p class="sg-meta">
+            Line group · {lines.length} pairs. <code>--line</code> is decorative and only has to be seen;
+            <code> --line-strong</code> is a control boundary and carries WCAG 1.4.11's 3:1.
+          </p>
+          <ul class="list-bare gap-3xs flex flex-col">
+            {
+              lines
+                .filter((r) => r.threshold !== null)
+                .map((r) => (
+                  <li class="sg-mono gap-sm flex items-baseline justify-between">
+                    <span>{r.theme} · line-strong on {r.bg.replace('--bg-', '')}</span>
+                    <span class={r.pass ? 'text-secondary' : 'text-accent'}>{r.ratio.toFixed(2)}</span>
+                  </li>
+                ))
+            }
+          </ul>
+        </div>
+      </div>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       03 TYPE
+       =================================================================== -->
+  <Section id="type" space="md">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="03 · type"
+        heading="Type sizes"
+        lede="Named for SIZE, not for role. Heading level is already a prop, so visual size has to be nameable independently or the two silently fuse. Every step is a clamp() between a 320px and a 1312px viewport — there are no media queries in the type system at all."
+        split
+      />
+
+      <ul class="list-bare flex flex-col">
+        {
+          TYPE_ROLES.map(({ token, style, role, sample }) => (
+            <li class="border-line gap-3xs py-sm flex flex-col border-t">
+              <p class="sg-meta">
+                <span class="sg-mono">{token}</span> · <span class="sg-mono">.{style}</span> · default role: {role}
+              </p>
+              <p class={style}>{sample}</p>
+            </li>
+          ))
+        }
+      </ul>
+
+      <p class="sg-meta measure">
+        <strong class="text-primary">md is the lede step.</strong> Stock Tailwind runs sm → base → lg with nothing
+        between body and lede, and that gap is the most-used step in marketing copy. Deliberate deviation.
+      </p>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       04 SPACING
+       =================================================================== -->
+  <Section id="spacing" space="md" class="bg-subtle">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="04 · spacing"
+        heading="Spacing scale"
+        lede="Fluid throughout, from a 2px hairline to 12rem. The bars are live token widths at this viewport — resize and they move. T-shirt names permanently: a numeric name would collide with stock Tailwind's meaning in every developer's memory, and the failure is silent in both directions."
+        split
+      />
+
+      <ul class="list-bare gap-2xs flex flex-col">
+        {
+          SPACING_STEPS.map((step) => (
+            <li class="gap-md grid grid-cols-[6rem_1fr] items-center">
+              <span class="sg-mono">--spacing-{step}</span>
+              <span class="sg-bar" style={`width: var(--spacing-${step})`} />
+            </li>
+          ))
+        }
+      </ul>
+
+      <div class="gap-2xs flex flex-col">
+        <p class="sg-meta">Section rhythm and nav clearance — consumed only by &lt;Section&gt;, never by a page.</p>
+        <ul class="list-bare gap-2xs flex flex-col">
+          {
+            SECTION_STEPS.map((step) => (
+              <li class="gap-md grid grid-cols-[9rem_1fr] items-center">
+                <span class="sg-mono">--spacing-{step}</span>
+                <span class="sg-bar" style={`width: var(--spacing-${step})`} />
+              </li>
+            ))
+          }
+        </ul>
+        <p class="sg-meta measure">
+          <span class="sg-mono">--spacing-section-nav</span> is derived, never measured:
+          <span class="sg-mono">calc(var(--nav-height) + var(--spacing-section-md))</span>. It stays correct when
+          either input moves.
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       05 LAYOUT & GUTTERS  (full-bleed, so the rules line up with the real page)
+       =================================================================== -->
+  <Section id="layout" space="md" width="full">
+    <div class="container-main">
+      <SectionHeader
+        eyebrow="05 · layout"
+        heading="Site margin, container, and the one gutter"
+        lede="--site-margin is the only source of page-edge inline padding in the system. Nav, Section and Footer all read it through the same container utility, which is what makes a logo, a heading and a footer link land on one vertical line down the page edge."
+        split
+      />
+    </div>
+
+    <!-- The demo is full-bleed on purpose: the dashed rules below sit at exactly
+         the same x as the container edge of every other section on this page.
+         Compare them against the heading above. -->
+    <div class="mt-lg border-line relative border-y">
+      <div class="sg-gutter-overlay" aria-hidden="true">
+        <div class="container-main h-full">
+          <div class="sg-gutter-rule h-full"></div>
+        </div>
+      </div>
+
+      <div class="border-line border-b">
+        <div class="container-main h-nav gap-md flex items-center justify-between">
+          <Logo class="w-nav-logo text-primary" title="Nav logo" />
+          <span class="sg-meta">Nav — container-main</span>
+        </div>
+      </div>
+
+      <div class="py-lg">
+        <div class="container-main gap-2xs flex flex-col">
+          <p class="text-h6 text-primary">Section — container-main</p>
+          <p class="sg-meta">Same max-width, same --site-margin. Children never re-apply either.</p>
+        </div>
+      </div>
+
+      <div class="bg-subtle border-line py-sm border-y text-center">
+        <p class="sg-meta">
+          width="full" — the wrapper is kept so theme and rhythm are identical; only the max-width and the site
+          margin are skipped. Full bleed is a container variant, not a different component.
+        </p>
+      </div>
+
+      <div class="border-line border-t">
+        <div class="container-main h-nav flex items-center">
+          <span class="sg-meta">Footer — container-main</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="container-main mt-lg">
+      <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+        <h3 class="text-h6 text-primary">The boundary below Section</h3>
+        <ul class="list-bare gap-3xs text-body-sm text-secondary flex flex-col">
+          <li>— no <code>max-w-container-*</code>: the token is outside <code>@theme</code>, so the utility does not exist.</li>
+          <li>— no <code>px-*</code> recreating gutters: <code>--site-margin</code> is applied once, by the container.</li>
+          <li>— no <code>py-*</code> recreating section rhythm: that is <code>space</code>.</li>
+          <li>— no <code>mx-auto</code> page centering.</li>
+        </ul>
+        <p class="sg-meta">
+          Anything that must exceed its container is a Section-level decision — <code>width="full"</code>, or a new
+          ruling. A "breakout" width is deliberately not in the system.
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       06 SECTION
+       =================================================================== -->
+  <Section id="section" space="md" class="bg-subtle">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="06 · section"
+        heading="Section — the page grammar"
+        lede="The only page-level parent. It alone applies vertical padding, the container and the theme. Hatching below is the padding Section owns; pages never make a spacing decision and there is no such thing as a spacer div."
+        split
+      />
+
+      <div class="gap-md grid sm:grid-cols-2 lg:grid-cols-4">
+        <div class="gap-2xs flex flex-col">
+          <div class="sg-diagram">
+            <div class="sg-pad" style="height: var(--spacing-section-sm)"><span class="sg-pad-label">space=sm</span></div>
+            <div class="sg-diagram-content">content</div>
+            <div class="sg-pad" style="height: var(--spacing-section-sm)"></div>
+          </div>
+          <p class="sg-meta">space="sm" — symmetric</p>
+        </div>
+
+        <div class="gap-2xs flex flex-col">
+          <div class="sg-diagram">
+            <div class="sg-pad" style="height: var(--spacing-section-lg)"><span class="sg-pad-label">spaceTop=lg</span></div>
+            <div class="sg-diagram-content">content</div>
+            <div class="sg-pad" style="height: var(--spacing-section-sm)"><span class="sg-pad-label">spaceBottom=sm</span></div>
+          </div>
+          <p class="sg-meta">overrides compose</p>
+        </div>
+
+        <div class="gap-2xs flex flex-col">
+          <div class="sg-diagram">
+            <div class="sg-pad" style="height: var(--spacing-section-nav)"><span class="sg-pad-label">spaceTop=nav</span></div>
+            <div class="sg-diagram-content">first section clears the fixed nav</div>
+            <div class="sg-pad" style="height: var(--spacing-section-md)"></div>
+          </div>
+          <p class="sg-meta">derived, never measured</p>
+        </div>
+
+        <div class="gap-2xs flex flex-col">
+          <div class="sg-diagram">
+            <div class="sg-diagram-content">↕ space="none"</div>
+            <div class="sg-diagram-content border-line border-t">butts against the next</div>
+          </div>
+          <p class="sg-meta">a real step, not an escape hatch</p>
+        </div>
+      </div>
+
+      <pre class="sg-code" tabindex="0"><code>{`<Section
+  as="section"     // section | div | header | footer | article | aside
+  space="md"       // none | sm | md | lg
+  spaceTop="nav"   // override the top only; adds "nav"
+  spaceBottom="sm" // override the bottom only
+  width="main"     // main | narrow | full
+  theme="dark"     // sets data-theme; children adapt
+  reveal           // opts children into scroll reveal (§12.2)
+  id="pricing"
+>`}</code></pre>
+    </div>
+  </Section>
+
+  <!-- Live dark section. Identical component API, one attribute. -->
+  <Section theme="dark" space="md">
+    <div class="gap-md flex flex-col">
+      <SectionHeader eyebrow='theme="dark"' heading="One attribute; every consumer remaps" headingLevel="h3" size="h3" split>
+        <Fragment slot="lede">
+          Identical markup to the light sections above. The card is <code>bg-surface</code>, which on this ground
+          sits <em>lighter</em> than the section behind it — elevation is lightness here.
+        </Fragment>
+      </SectionHeader>
+
+      <div class="gap-md grid md:grid-cols-3">
+        <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border md:col-span-1">
+          <p class="text-h6 text-primary">Surface card</p>
+          <p class="text-body-sm text-secondary">Supporting copy, secondary.</p>
+          <p class="text-caption text-tertiary">Tertiary meta — the tightest pair in the whole matrix, 5.05:1.</p>
+        </div>
+        <div class="gap-sm md:col-span-2 flex flex-wrap items-start">
+          <Button href="#section" variant="primary">Primary adapts</Button>
+          <Button href="#section" variant="secondary">Secondary too</Button>
+          <Button href="#section" variant="ghost">Ghost</Button>
+        </div>
+      </div>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       07 ATOMS
+       =================================================================== -->
+  <Section id="atoms" space="md">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="07 · atoms"
+        heading="Atoms"
+        lede="The indivisible primitives every project ships. An atom may be non-visual: JsonLd emits structured data and renders nothing, and is still an atom — indivisible and context-free is the test, not whether it paints."
+        split
+      />
+
+      <div class="gap-md flex flex-col">
+        <p class="sg-meta">Button — variant × size. Primary is the accent fill, which is where broken accent wiring shows up first.</p>
+        <div class="gap-sm flex flex-wrap items-center">
+          <Button href="#atoms" variant="primary" size="md">Primary md</Button>
+          <Button href="#atoms" variant="secondary" size="md">Secondary md</Button>
+          <Button href="#atoms" variant="ghost" size="md">Ghost md</Button>
+        </div>
+        <div class="gap-sm flex flex-wrap items-center">
+          <Button href="#atoms" variant="primary" size="sm">Primary sm</Button>
+          <Button href="#atoms" variant="secondary" size="sm">Secondary sm</Button>
+          <Button href="#atoms" variant="ghost" size="sm">Ghost sm</Button>
+        </div>
+        <div class="gap-sm flex flex-wrap items-center">
+          <Button href="#atoms" variant="primary" icon="arrow">icon="arrow" · renders &lt;a&gt;</Button>
+          <Button variant="secondary" icon="play" iconPosition="start">icon at start · renders &lt;button&gt;</Button>
+          <Button href="https://example.com" variant="ghost" external>external</Button>
+          <Button variant="secondary" disabled>disabled</Button>
+        </div>
+      </div>
+
+      <div class="gap-md grid md:grid-cols-2">
+        <div class="gap-xs flex flex-col">
+          <p class="sg-meta">TextLink — underline in the line colour, accent on hover.</p>
+          <p class="text-body text-secondary measure">
+            Prose gets <TextLink href="#atoms">a TextLink</TextLink>, which reads as a link at rest without
+            shouting, and <TextLink href="https://example.com" external>one that opens a new tab</TextLink> and
+            says so to a screen reader.
+          </p>
+        </div>
+
+        <div class="gap-md flex flex-col">
+          <p class="sg-meta">FormField — explicit for/id, aria-describedby on the error, border on --line-strong.</p>
+          <FormField label="Email" name="sg-email" type="email" placeholder="you@example.com" required />
+          <FormField
+            label="Email with an error"
+            name="sg-email-error"
+            type="email"
+            error="That does not look like an email address."
+          />
+        </div>
+      </div>
+
+      <div class="gap-md grid md:grid-cols-3">
+        <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+          <p class="sg-meta">Logo — currentColor, follows the theme.</p>
+          <Logo class="w-nav-logo text-primary" title="Placeholder wordmark" />
+        </div>
+        <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+          <p class="sg-meta">VisuallyHidden — present, announced, not painted.</p>
+          <p class="text-body-sm text-secondary">
+            Read more<VisuallyHidden> about the demo collection</VisuallyHidden>
+          </p>
+        </div>
+        <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+          <p class="sg-meta">JsonLd — emitted into this page, renders nothing.</p>
+          <p class="text-body-sm text-secondary">Data, not script. Excluded from the JS census by type.</p>
+          <JsonLd schema={{ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Styleguide' }} />
+        </div>
+      </div>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       08 BLOCKS & THE CARD PATTERN
+       =================================================================== -->
+  <Section id="blocks" space="md" class="bg-subtle">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="08 · blocks"
+        heading="Blocks, on bg-subtle, with cards on bg-surface"
+        lede="Three grounds working at once. The section sits on subtle, the cards on surface, and every text token passes on both — which is exactly what the matrix in 02 guarantees rather than hopes."
+        split
+      />
+
+      <div class="bg-surface border-line p-md gap-sm flex flex-col rounded-md border">
+        <h3 class="text-h5 text-primary">The card pattern</h3>
+        <p class="text-body-sm text-secondary measure">
+          A card is a <strong class="text-primary">pattern, not a component</strong>. There is no generic Card
+          shell and no card family in the base kit. The recipe is:
+        </p>
+        <pre class="sg-code" tabindex="0"><code>bg-surface + border-line + rounded-md + p-sm | p-md</code></pre>
+        <p class="text-body-sm text-secondary measure">
+          Project cards — ProductCard, WorkCard, PricingCard — are instantiations of it. They never invent their
+          own surface, border or radius treatment; if one needs a different treatment, that is a token decision
+          made in global.css where every card gets it. They share no structure, so a common parent would be a
+          bordered div, which is a class, not a component.
+        </p>
+      </div>
+
+      <div class="gap-md grid sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => <ItemCard item={item} headingLevel="h4" />)}
+      </div>
+
+      <div class="gap-2xs flex flex-col">
+        <p class="sg-meta">Faq — native &lt;details&gt;, spring-eased through ::details-content, zero JS.</p>
+        <Faq items={faqItems} headingLevel="h4" />
+      </div>
+
+      <div class="gap-2xs flex flex-col">
+        <p class="sg-meta">LogoStrip — the label is a &lt;p&gt;, not a heading: it introduces a list of marks, not a section.</p>
+        <div class="bg-surface border-line p-md rounded-md border">
+          <LogoStrip label="Trusted by" logos={demoLogos} />
+        </div>
+      </div>
+
+      <div class="gap-2xs flex flex-col">
+        <p class="sg-meta">CtaBanner — a themed island inside a subtle ground. A block, not a Section: it renders no rhythm of its own.</p>
+        <CtaBanner
+          theme="dark"
+          eyebrow="CtaBanner"
+          heading="Themed by attribute"
+          body="Same tokens, remapped. The page decides where this sits by wrapping it in a Section, like everything else."
+          headingLevel="h3"
+          primary={{ label: 'Primary action', href: '#blocks' }}
+          secondary={{ label: 'Secondary', href: '#blocks' }}
+        />
+      </div>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       09 NAV DROPDOWN
+       =================================================================== -->
+  <Section id="nav" space="md">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="09 · nav"
+        heading="The dropdown is a disclosure, never hover-only"
+        lede="Hover-only menus do not exist for touch or keyboard users. The trigger is a <button aria-expanded> and the panel's visibility is driven off that one attribute — so the accessible state and the visual state cannot drift apart, because they are the same fact read twice."
+        split
+      />
+
+      <div class="bg-surface border-line p-md gap-sm flex flex-col rounded-md border">
+        <p class="text-body-sm text-secondary measure">
+          The live one is in the nav at the top of this page — open{' '}
+          <strong class="text-primary">Resources</strong> and try each of these:
+        </p>
+        <ul class="list-bare gap-3xs text-body-sm text-secondary flex flex-col">
+          <li>— <kbd class="sg-kbd">Esc</kbd> closes it <em>and returns focus to the trigger</em>. That second half is the one usually missing.</li>
+          <li>— a pointer press outside closes it.</li>
+          <li>— <kbd class="sg-kbd">Tab</kbd> out of the group closes it, so focus cannot strand an open panel behind you.</li>
+          <li>— opening one closes any other.</li>
+          <li>— below <span class="sg-mono">lg</span>, the group folds into the &lt;details&gt; menu as a labelled sub-list, with no extra JavaScript at all.</li>
+        </ul>
+        <p class="sg-meta">
+          One delegated module owns every disclosure on the page — <span class="sg-mono">src/scripts/disclosure.ts</span>.
+          Adding a fourth dropdown adds zero bytes.
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       10 MOTION
+       =================================================================== -->
+  <Section id="motion" space="md" class="bg-subtle" reveal>
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="10 · motion"
+        heading="Springs are the default, and they are free"
+        lede="A spring is a curve, and linear() can carry an arbitrary curve — including the overshoot a cubic-bezier cannot express. So the entire spring character of this system costs zero JavaScript and runs on the compositor, which is why springs are the default here rather than a special occasion."
+        split
+      />
+
+      <div class="gap-md grid md:grid-cols-2">
+        <div class="bg-surface border-line p-md gap-sm flex flex-col rounded-md border">
+          <p class="sg-meta">Hover either box. Same duration, different damping ratio.</p>
+          <div class="gap-sm flex flex-col">
+            <div class="sg-spring sg-spring-soft">
+              <span class="sg-mono">ease-spring-soft · ζ 0.90 · 400ms</span>
+            </div>
+            <div class="sg-spring sg-spring-snappy">
+              <span class="sg-mono">ease-spring-snappy · ζ 0.68 · 280ms · overshoots to 1.055</span>
+            </div>
+          </div>
+          <p class="sg-meta">
+            Generated by <span class="sg-mono">scripts/springs/</span> from stiffness/damping/mass, committed as
+            CSS so a build never depends on the generator.
+          </p>
+        </div>
+
+        <div class="bg-surface border-line p-md gap-sm flex flex-col rounded-md border">
+          <h3 class="text-h6 text-primary">Scroll reveal — opt-in per Section</h3>
+          <p class="text-body-sm text-secondary">
+            This Section carries <span class="sg-mono">reveal</span>, which sets{' '}
+            <span class="sg-mono">data-reveal-group</span> on its container. Default off: a page where everything
+            animates in has no emphasis left to spend.
+          </p>
+          <p class="sg-meta">
+            <strong class="text-primary">Dormant in this build.</strong> The native reveal module is supplied
+            separately; the hook and the CSS contract are in place and wiring it is a drop-in. Nothing on this page
+            carries <span class="sg-mono">data-reveal</span>, so nothing is hidden — a reveal system that hides
+            content when its script does not run is a content-loss bug, not an animation.
+          </p>
+        </div>
+      </div>
+
+      <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+        <h3 class="text-h6 text-primary">The reduced-motion contract</h3>
+        <ul class="list-bare gap-3xs text-body-sm text-secondary flex flex-col">
+          <li>— reveals render their content <strong class="text-primary">visible, with no animation</strong> — never hidden;</li>
+          <li>— transitions collapse to near-instant rather than being removed, so state changes still read as changes;</li>
+          <li>— nothing autoplays;</li>
+          <li>— only <code>transform</code> and <code>opacity</code> are ever animated, in either mode. They are the only properties the compositor can animate without layout or paint.</li>
+        </ul>
+        <p class="sg-meta">
+          Turn on "Reduce motion" in the OS and reload: the spring boxes above snap, and nothing else on this page
+          changes — which is the contract working.
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       11 PROSE
+       =================================================================== -->
+  <Section id="prose" space="md" width="narrow">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="11 · prose"
+        heading="Prose"
+        lede="One scoped style of our own, not the Tailwind typography plugin — which ships its own type scale, spacing scale and colour opinions, all of which would have to be overridden token by token."
+      />
+
+      <div class="prose">
+        <h2>A long-form body</h2>
+        <p>
+          Everything inside <code>.prose</code> comes from the same tokens as the rest of the system: paragraph
+          spacing from the spacing scale, the reading measure from <code>--container-measure</code>, links in the
+          line colour with the accent on hover.
+        </p>
+        <p>
+          MDX bodies render in here. The approved component vocabulary is closed per project — a new component
+          appearing in a body requires a ruling, and <code>src/components/mdx/index.ts</code> is where that ruling
+          becomes real.
+        </p>
+        <h3>Lists keep their semantics</h3>
+        <ul>
+          <li>Only lists that opt out with <code>.list-bare</code> lose their markers.</li>
+          <li>A navigation list is still a list to a screen reader.</li>
+          <li>Markers take the tertiary colour, so they recede without disappearing.</li>
+        </ul>
+        <blockquote>
+          A rule on the inline start rather than a coloured block — the same separation mechanism as everything
+          else here, and it survives the theme swap without a second treatment.
+        </blockquote>
+        <ol>
+          <li>Headings inside prose bind to the text below them, not between blocks.</li>
+          <li>They take more space above than below.</li>
+        </ol>
+        <p>
+          A link in prose: <a href="#prose">underlined in the line colour</a>, accent on hover, no component
+          required.
+        </p>
+      </div>
+    </div>
+  </Section>
+
+  <!-- ===================================================================
+       12 DEMO COLLECTION
+       =================================================================== -->
+  <Section id="collection" space="md" spaceBottom="lg" class="bg-subtle">
+    <div class="gap-lg flex flex-col">
+      <SectionHeader
+        eyebrow="12 · collection"
+        heading="Demo collection"
+        lede="Rendered from the items collection through its view-model adapter. glob() today, a CMS loader later, cards unchanged — because no component here has ever seen a CollectionEntry."
+        split
+      />
+
+      <div class="gap-md grid sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => <ItemCard item={item} headingLevel="h3" />)}
+      </div>
+
+      <pre class="sg-code" tabindex="0"><code>{`// src/lib/items.ts — the only file that knows where the data came from
+image: {
+  src:    image.src,
+  width:  Number(image.attributes.width),
+  height: Number(image.attributes.height),
+  alt:    entry.data.coverAlt,   // non-null, enforced by the schema
+}`}</code></pre>
+    </div>
+  </Section>
+</BaseLayout>
+
+<style>
+  /* Styleguide chrome only. Deliberately NOT in global.css: none of this ships
+     to a client page, and a starter whose global stylesheet carries its own
+     documentation furniture is a starter that ships it to every project.
+
+     Plain CSS against the global custom properties — no Tailwind utilities, so
+     nothing here can drift into the production bundle. */
+
+  .sg-mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.01em;
+  }
+
+  .sg-meta {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    line-height: 1.55;
+    color: var(--text-tertiary);
+  }
+
+  .sg-index-link {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-duration-spring-soft) var(--ease-spring-soft);
+  }
+
+  .sg-index-link:hover {
+    color: var(--accent);
+  }
+
+  .sg-swatch {
+    aspect-ratio: 1 / 1.4;
+    position: relative;
+  }
+
+  /* Colour is set inline, per swatch, by the contrast function in the
+     frontmatter. See the note there. */
+  .sg-swatch-label {
+    position: absolute;
+    inset-inline-start: 0.25rem;
+    inset-block-end: 0.2rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.62rem;
+  }
+
+  .sg-chip {
+    display: block;
+    width: 1.25rem;
+    height: 1.25rem;
+    flex: none;
+    border-radius: var(--radius-sm);
+  }
+
+  .sg-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+  }
+
+  .sg-matrix :is(th, td) {
+    border: var(--border-width) solid var(--line);
+    padding: 0.45rem 0.35rem;
+    text-align: center;
+  }
+
+  .sg-matrix th {
+    color: var(--text-tertiary);
+    font-weight: 400;
+  }
+
+  .sg-matrix-sample {
+    display: block;
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* No `opacity` here, and that is the point. It had 0.8, which knocked the
+     tertiary-on-subtle cell — the tightest pair in the light theme at 5.14:1 —
+     down below 4.5 and made this page fail the very rule it exists to show.
+     Ad-hoc alpha is banned in markup (§2.3) for exactly this reason; it is banned
+     in the styleguide's own furniture for the same one. The ratio renders in the
+     cell's real token colour, which is the ratio being demonstrated. */
+  .sg-matrix-ratio {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.6rem;
+  }
+
+  .sg-bar {
+    display: block;
+    height: 0.9rem;
+    min-width: 1px;
+    border-radius: 2px;
+    background-color: var(--accent);
+  }
+
+  .sg-diagram {
+    border: var(--border-width) dashed var(--line-strong);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background-color: var(--bg-base);
+  }
+
+  .sg-pad {
+    display: grid;
+    place-items: center;
+    background-image: repeating-linear-gradient(
+      45deg,
+      transparent 0 6px,
+      var(--line) 6px 7px
+    );
+  }
+
+  .sg-pad-label,
+  .sg-diagram-content {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.62rem;
+    color: var(--text-tertiary);
+  }
+
+  .sg-pad-label {
+    padding: 0.05rem 0.35rem;
+    border: var(--border-width) solid var(--line);
+    border-radius: 3px;
+    background-color: var(--bg-base);
+  }
+
+  .sg-diagram-content {
+    padding: var(--spacing-sm);
+    text-align: center;
+  }
+
+  .sg-code {
+    overflow-x: auto;
+    padding: var(--spacing-md);
+    border: var(--border-width) solid var(--line);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-base);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.72rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+
+  .sg-kbd {
+    padding: 0.05rem 0.35rem;
+    border: var(--border-width) solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.68rem;
+  }
+
+  /* The gutter overlay: two dashed rules at exactly the container's content
+     edge. Because the section around it is width="full", these sit at the same x
+     as every other section's container on this page — which is the thing being
+     demonstrated. */
+  .sg-gutter-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .sg-gutter-rule {
+    border-inline: var(--border-width) dashed var(--accent);
+  }
+
+  /* Spring demo boxes. transform and opacity only — the two properties the
+     compositor can animate without layout or paint. */
+  .sg-spring {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: var(--border-width) solid var(--line);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-base);
+    color: var(--text-secondary);
+    will-change: transform;
+  }
+
+  .sg-spring-soft {
+    transition: transform var(--transition-duration-spring-soft) var(--ease-spring-soft);
+  }
+
+  .sg-spring-snappy {
+    transition: transform var(--transition-duration-spring-snappy) var(--ease-spring-snappy);
+  }
+
+  @media (hover: hover) {
+    .sg-spring:hover {
+      transform: translateX(var(--spacing-lg));
+    }
+  }
+</style>

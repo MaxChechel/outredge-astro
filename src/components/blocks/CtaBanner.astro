@@ -1,0 +1,74 @@
+---
+import Button from '../atoms/Button.astro';
+
+/**
+ * Closing call to action (§4.2).
+ *
+ * A BLOCK, not a Section: it renders no vertical rhythm and no container of its
+ * own, so a page decides where it sits by wrapping it in a Section like
+ * everything else. The reference version wrapped its own Section, which meant a
+ * page could not put it anywhere but full-width at the foot — the exact kind of
+ * layout decision §4.4 keeps out of blocks.
+ *
+ * `theme` makes it a themed island inside whatever ground it lands on, which is
+ * the one-attribute theme swap doing real work rather than demonstrating itself.
+ */
+interface Props {
+  eyebrow?: string;
+  heading: string;
+  body?: string;
+  /** Document outline. Visual size is fixed at h2. */
+  headingLevel?: 'h2' | 'h3';
+  primary?: { label: string; href: string; external?: boolean };
+  secondary?: { label: string; href: string; external?: boolean };
+  /** Renders as a themed island. Omit to inherit the surrounding ground. */
+  theme?: 'light' | 'dark';
+  id?: string;
+  class?: string;
+}
+
+const {
+  eyebrow,
+  heading,
+  body,
+  headingLevel = 'h2',
+  primary,
+  secondary,
+  theme,
+  id,
+  class: className,
+} = Astro.props as Props;
+---
+
+<div
+  id={id}
+  data-theme={theme}
+  class:list={[
+    'border-line gap-lg px-lg py-2xl flex flex-col items-center rounded-md border text-center',
+    theme ? 'bg-base' : 'bg-subtle',
+    className,
+  ]}
+>
+  <div class="gap-sm flex flex-col items-center">
+    {eyebrow && <p class="text-eyebrow">{eyebrow}</p>}
+    {headingLevel === 'h3' ? <h3 class="text-h2">{heading}</h3> : <h2 class="text-h2">{heading}</h2>}
+    {body && <p class="text-lede text-secondary measure">{body}</p>}
+  </div>
+
+  {
+    (primary || secondary) && (
+      <div class="gap-sm flex flex-wrap justify-center">
+        {primary && (
+          <Button href={primary.href} variant="primary" external={primary.external}>
+            {primary.label}
+          </Button>
+        )}
+        {secondary && (
+          <Button href={secondary.href} variant="secondary" external={secondary.external}>
+            {secondary.label}
+          </Button>
+        )}
+      </div>
+    )
+  }
+</div>

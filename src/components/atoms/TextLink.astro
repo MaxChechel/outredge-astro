@@ -1,0 +1,32 @@
+---
+import VisuallyHidden from './VisuallyHidden.astro';
+
+/**
+ * Prose link with the house underline treatment (§4.1).
+ *
+ * The underline sits in the LINE colour and comes up to the accent on hover —
+ * so the link reads as a link at rest without shouting, and the accent is
+ * exercised in a second place besides the primary button. `external` adds the
+ * rel/target pair and a screen-reader hint, so a link that opens a new tab
+ * always announces that it will.
+ */
+interface Props {
+  href: string;
+  external?: boolean;
+  class?: string;
+  [key: string]: unknown;
+}
+
+const { href, external = false, class: className, ...rest } = Astro.props as Props;
+---
+
+<a
+  href={href}
+  rel={external ? 'noopener noreferrer' : undefined}
+  target={external ? '_blank' : undefined}
+  class:list={['text-link', className]}
+  {...rest}
+>
+  <slot />
+  {external && <VisuallyHidden> (opens in a new tab)</VisuallyHidden>}
+</a>

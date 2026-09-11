@@ -1,0 +1,68 @@
+---
+import type { ItemView } from '../../lib/items';
+
+/**
+ * A card for the demo `items` collection.
+ *
+ * NOT base kit — it is an INSTANTIATION OF THE CARD PATTERN (§4.2), kept here as
+ * the worked example a project copies. The recipe it follows, and does not
+ * deviate from:
+ *
+ *     bg-surface + border-line + --radius-md + padding from the spacing scale
+ *
+ * A project card never invents its own surface, border or radius treatment. If
+ * one needs a different treatment, that is a token decision, not a card
+ * decision, and it happens in global.css where every card gets it.
+ *
+ * Note the prop type: `ItemView`, from the adapter. This component has never
+ * seen a `CollectionEntry`, which is what makes the CMS swap in §5 a one-file
+ * change.
+ */
+interface Props {
+  item: ItemView;
+  /** Document outline. The visual size does not move with it. */
+  headingLevel?: 'h3' | 'h4';
+  class?: string;
+}
+
+const { item, headingLevel = 'h3', class: className } = Astro.props as Props;
+---
+
+<article
+  class:list={[
+    // The card pattern, in full. Nothing else.
+    'bg-surface border-line overflow-hidden rounded-md border',
+    'transition-colors duration-spring-soft ease-spring-soft hover:border-line-strong',
+    className,
+  ]}
+>
+  <img
+    src={item.image.src}
+    width={item.image.width}
+    height={item.image.height}
+    alt={item.image.alt}
+    loading="lazy"
+    decoding="async"
+    class="aspect-3/2 w-full object-cover"
+  />
+
+  <div class="gap-xs p-md flex flex-col">
+    {
+      headingLevel === 'h4' ? (
+        <h4 class="text-h6 text-primary">{item.title}</h4>
+      ) : (
+        <h3 class="text-h6 text-primary">{item.title}</h3>
+      )
+    }
+    <p class="text-body-sm text-secondary">{item.summary}</p>
+    {
+      item.tags.length > 0 && (
+        <ul class="list-bare gap-2xs pt-xs flex flex-wrap">
+          {item.tags.map((tag) => (
+            <li class="border-line text-caption text-tertiary px-xs py-3xs rounded-sm border">{tag}</li>
+          ))}
+        </ul>
+      )
+    }
+  </div>
+</article>

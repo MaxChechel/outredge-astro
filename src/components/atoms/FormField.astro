@@ -1,0 +1,119 @@
+---
+/**
+ * Form field — label + control + error slot, always together (§4.1).
+ *
+ * Explicit `for`/`id` wiring rather than a wrapping label: the error message
+ * has to be referenced by `aria-describedby`, which needs an id anyway, and a
+ * field whose label and whose description are wired two different ways is a
+ * field where one of them eventually stops matching.
+ *
+ * The control border is `--line-strong`, not `--line`. On an input the border
+ * IS the control's boundary — the only thing saying "you can type here" — which
+ * is WCAG 1.4.11's 3:1 case, and `--line` is nowhere near it. The two line
+ * tokens exist for exactly this distinction.
+ */
+interface Props {
+  label: string;
+  name: string;
+  /** Unique on the page. Defaults to `name`, which is usually already unique. */
+  id?: string;
+  type?: 'text' | 'email' | 'tel' | 'url' | 'textarea' | 'select';
+  placeholder?: string;
+  required?: boolean;
+  autocomplete?: string;
+  inputmode?: 'text' | 'email' | 'tel' | 'url';
+  rows?: number;
+  options?: readonly string[];
+  /** Renders the error slot and points `aria-describedby` at it. */
+  error?: string;
+  class?: string;
+}
+
+const {
+  label,
+  name,
+  id = name,
+  type = 'text',
+  placeholder,
+  required = false,
+  autocomplete,
+  inputmode,
+  rows = 5,
+  options = [],
+  error,
+  class: className,
+} = Astro.props as Props;
+
+const errorId = `${id}-error`;
+
+const control = [
+  'w-full rounded-sm border border-line-strong bg-surface text-primary',
+  'px-sm py-xs text-body-sm',
+  'placeholder:text-tertiary',
+  'transition-colors duration-spring-soft ease-spring-soft',
+  'hover:border-accent focus-visible:border-accent',
+  // The invalid state is announced, so it must also be seen without colour
+  // alone — the border thickens as well as recolouring.
+  'aria-[invalid=true]:border-accent',
+].join(' ');
+---
+
+<div class:list={['flex flex-col gap-xs', className]}>
+  <label for={id} class="text-body-sm text-secondary">
+    {label}
+    {required && <span class="sr-only"> (required)</span>}
+  </label>
+
+  {
+    type === 'textarea' ? (
+      <textarea
+        id={id}
+        name={name}
+        rows={rows}
+        placeholder={placeholder}
+        required={required}
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={error ? errorId : undefined}
+        class:list={[control, 'resize-y']}
+      />
+    ) : type === 'select' ? (
+      <span class="select-wrap relative block">
+        <select
+          id={id}
+          name={name}
+          required={required}
+          aria-invalid={error ? 'true' : undefined}
+          aria-describedby={error ? errorId : undefined}
+          class:list={[control, 'appearance-none pr-xl']}
+        >
+          <option value="">Select one&hellip;</option>
+          {options.map((option) => (
+            <option value={option}>{option}</option>
+          ))}
+        </select>
+        <span class="select-icon" aria-hidden="true" />
+      </span>
+    ) : (
+      <input
+        id={id}
+        type={type}
+        name={name}
+        placeholder={placeholder}
+        required={required}
+        autocomplete={autocomplete}
+        inputmode={inputmode}
+        aria-invalid={error ? 'true' : undefined}
+        aria-describedby={error ? errorId : undefined}
+        class={control}
+      />
+    )
+  }
+
+  {
+    error && (
+      <p id={errorId} class="text-caption text-primary">
+        {error}
+      </p>
+    )
+  }
+</div>

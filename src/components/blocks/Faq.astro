@@ -1,0 +1,46 @@
+---
+/**
+ * FAQ / accordion (§4.2).
+ *
+ * Native <details>/<summary>. It is keyboard-operable, announced as a
+ * disclosure, and findable by in-page search with ZERO JavaScript — the
+ * reference build replaced 3.8 KB of accordion script whose hover-open,
+ * close-previous and open-by-default features its single instance never used.
+ *
+ * The open/close animation is a spring, driven entirely by CSS through
+ * `::details-content` — see the `.faq-item` rules in global.css §9 for why that
+ * pseudo-element is the only box that can be transitioned here.
+ */
+interface Props {
+  items: readonly { question: string; answer: readonly string[] }[];
+  /** Document outline for each question. */
+  headingLevel?: 'h3' | 'h4';
+  /** Opens the first item. Off by default: an open item is a content decision. */
+  defaultOpen?: boolean;
+  class?: string;
+}
+
+const { items, headingLevel = 'h3', defaultOpen = false, class: className } = Astro.props as Props;
+---
+
+<div class:list={['border-line border-t', className]}>
+  {
+    items.map((item, index) => (
+      <details class="faq-item border-line group border-b" open={defaultOpen && index === 0}>
+        <summary class="gap-md py-md flex cursor-pointer list-none items-center justify-between">
+          {headingLevel === 'h4' ? (
+            <h4 class="text-h6 text-primary">{item.question}</h4>
+          ) : (
+            <h3 class="text-h6 text-primary">{item.question}</h3>
+          )}
+          <span class="faq-chevron shrink-0" aria-hidden="true" />
+        </summary>
+        <div class="gap-sm pb-md flex flex-col">
+          {item.answer.map((paragraph) => (
+            <p class="text-body-sm text-secondary measure">{paragraph}</p>
+          ))}
+        </div>
+      </details>
+    ))
+  }
+</div>

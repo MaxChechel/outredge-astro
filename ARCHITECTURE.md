@@ -294,9 +294,18 @@ not a component. They are siblings, not subclasses.
 Block rules:
 - **Heading level is always a prop** (`headingLevel={2|3}`) — same block, correct
   outline anywhere. One `h1` per page, zero skips, verified.
-- **Dynamic-tag caveat:** `const { as: Tag } = Astro.props` + `<Tag>` silently
-  disables prop-type inference. Leaf components branch on literal elements;
-  `<Tag>` is reserved for Section, with typing re-verified.
+- **Dynamic-tag caveat, and the wider rule it turned out to be:** `const { as:
+  Tag } = Astro.props` + `<Tag>` silently disables prop-type inference. Leaf
+  components branch on literal elements; `<Tag>` is reserved for Section, with
+  typing re-verified.
+  **The trigger is the prop NAME, not the dynamic tag.** A leaf component that
+  merely *declares* `as?: 'h2' | 'h3'` in its `Props` — and renders literal
+  elements — has its entire `Props` type discarded: `astro check` then types it
+  as `IntrinsicAttributes` with no `& Props`, and **every prop on that component
+  stops being checked**, silently. So `as` is reserved for Section as a NAME.
+  Leaves take `headingLevel`, which is what this section already called it.
+  How to see it: `astro check` reporting a component's props as
+  `IntrinsicAttributes` rather than `IntrinsicAttributes & Props`.
 - Used 3+ times with identical meaning → becomes a block. No arbitrary values
   (`p-[13px]`) without a justifying comment; twice = new token.
 
@@ -449,6 +458,12 @@ missing required slot **fails the build**.
   `scrollWidth === clientWidth` everywhere.
 - Exactly one `h1`, zero heading skips — automated.
 - Every image: dimensions + alt; zero broken refs.
+- **Visibility-filtered overflow.** The offender list must skip elements that
+  fail `checkVisibility()`. A closed `<details>` keeps its last laid-out
+  geometry — `getBoundingClientRect()` on its hidden children returns stale,
+  overflowing rects while the document itself does not scroll — so an unfiltered
+  sweep reports phantom offenders for every mobile menu on the site, and a sweep
+  nobody believes is a sweep nobody reads.
 - JS census of `dist/`, each byte justified.
 - **Token contrast matrix** — the contrast ratio of every text token on every
   background token in every theme (currently 3 × 3 × 2 = 18 pairs), computed

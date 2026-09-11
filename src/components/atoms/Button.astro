@@ -1,0 +1,118 @@
+---
+import VisuallyHidden from './VisuallyHidden.astro';
+
+/**
+ * The canonical button atom (§4.1).
+ *
+ * Renders `<a>` when `href` is present and `<button>` otherwise, with the right
+ * semantics either way. Every colour comes from the semantic token layer, so a
+ * `theme="dark"` Section recolours every button inside it with no variant
+ * classes and no `dark:` in markup.
+ *
+ * `primary` is the accent fill, which is the one place the accent plumbing is
+ * load-bearing in the base kit: if `--accent` or `--accent-contrast` is wired
+ * wrong, the primary button is where you see it.
+ */
+export type ButtonVariant = 'primary' | 'secondary' | 'ghost';
+export type ButtonSize = 'sm' | 'md';
+/** Typed per §4.1; extend the union per project rather than passing markup. */
+export type ButtonIcon = 'arrow' | 'play' | 'close';
+
+interface Props {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  icon?: ButtonIcon;
+  iconPosition?: 'start' | 'end';
+  href?: string;
+  type?: 'button' | 'submit' | 'reset';
+  /** Adds rel/target and the "opens in a new tab" hint. */
+  external?: boolean;
+  disabled?: boolean;
+  class?: string;
+  [key: string]: unknown;
+}
+
+const {
+  variant = 'primary',
+  size = 'md',
+  icon,
+  iconPosition = 'end',
+  href,
+  type = 'button',
+  external = false,
+  disabled = false,
+  class: className,
+  ...rest
+} = Astro.props as Props;
+
+const Tag = href ? 'a' : 'button';
+
+/**
+ * Complete class strings. Never `` `bg-${variant}` `` — the scanner reads source
+ * as text and would generate none of these.
+ *
+ * `secondary` takes `border-line-strong`, not `border-line`: its border is the
+ * only thing saying "this is a control", which is WCAG 1.4.11's 3:1 case. A
+ * divider-weight border here would be a real failure, not a style choice.
+ */
+const VARIANT = {
+  primary: [
+    'bg-accent text-on-accent border-accent',
+    'hover:bg-transparent hover:text-accent',
+  ],
+  secondary: [
+    'bg-transparent text-primary border-line-strong',
+    'hover:bg-subtle hover:border-accent hover:text-accent',
+  ],
+  ghost: ['bg-transparent text-secondary border-transparent', 'hover:text-accent'],
+} as const;
+
+const SIZE = {
+  sm: 'h-control-sm px-md gap-xs text-body-sm',
+  md: 'h-control-md px-lg gap-xs text-body',
+} as const;
+
+/** Inline, currentColor, sized to the label's cap height. */
+const ICON_PATHS = {
+  arrow: 'M2 8h12M9.5 3.5 14 8l-4.5 4.5',
+  play: 'M4.5 2.5v11l9-5.5-9-5.5Z',
+  close: 'm3.5 3.5 9 9m0-9-9 9',
+} as const;
+---
+
+<Tag
+  href={href}
+  type={href ? undefined : type}
+  disabled={href ? undefined : disabled || undefined}
+  aria-disabled={href && disabled ? 'true' : undefined}
+  rel={external ? 'noopener noreferrer' : undefined}
+  target={external ? '_blank' : undefined}
+  class:list={[
+    'inline-flex items-center justify-center rounded-sm border whitespace-nowrap',
+    // Springs are the default character of the system (§12), including here.
+    'transition-colors duration-spring-soft ease-spring-soft',
+    // A disabled control must read as disabled.
+    'disabled:pointer-events-none disabled:opacity-40 aria-disabled:pointer-events-none aria-disabled:opacity-40',
+    SIZE[size],
+    VARIANT[variant],
+    className,
+  ]}
+  {...rest}
+>
+  {
+    icon && iconPosition === 'start' && (
+      <svg class="size-icon-inline" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d={ICON_PATHS[icon]} stroke="currentColor" stroke-width="1.25" />
+      </svg>
+    )
+  }
+  <slot />
+  {
+    icon && iconPosition === 'end' && (
+      <svg class="size-icon-inline" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d={ICON_PATHS[icon]} stroke="currentColor" stroke-width="1.25" />
+      </svg>
+    )
+  }
+  {external && <VisuallyHidden> (opens in a new tab)</VisuallyHidden>}
+</Tag>

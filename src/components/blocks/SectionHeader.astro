@@ -1,0 +1,82 @@
+---
+/**
+ * Eyebrow + heading + lede (§4.2).
+ *
+ * HEADING LEVEL IS A PROP, and it is independent of the visual size. The same
+ * block renders an <h2> at the top of a page and an <h3> inside a subsection
+ * with no change to how it looks — which is the entire reason the type scale is
+ * named for size (`.text-h2`) rather than for level. One h1 per page, zero
+ * skips, verified by the sweep.
+ *
+ * Two layouts: stacked by default, or `split` to put supporting copy in a
+ * second column on wide viewports.
+ */
+interface Props {
+  eyebrow?: string;
+  heading: string;
+  /**
+   * Document outline. Visual size is set by `size`, not by this.
+   *
+   * NOT named `as`. On a leaf component an `as` prop makes Astro's type layer
+   * treat the component as polymorphic and DISCARD its Props type entirely —
+   * silently, so every prop on it stops being checked. §4.2 reserves `<Tag>` and
+   * the `as` name for Section, with its typing re-verified; leaves take
+   * `headingLevel`. Found by `astro check` reporting a component's props as
+   * `IntrinsicAttributes` with no `& Props`.
+   */
+  headingLevel?: 'h1' | 'h2' | 'h3' | 'h4';
+  /** Visual size, decoupled from `as`. */
+  size?: 'h1' | 'h2' | 'h3';
+  lede?: string;
+  /** Puts the lede in a second column from md up. */
+  split?: boolean;
+  /** Cap the heading column at the reading measure. */
+  measure?: boolean;
+  id?: string;
+  class?: string;
+}
+
+const {
+  eyebrow,
+  heading,
+  headingLevel = 'h2',
+  size = 'h2',
+  lede,
+  split = false,
+  measure = false,
+  id,
+  class: className,
+} = Astro.props as Props;
+
+/* Complete class strings — the scanner cannot see `text-${size}`. */
+const SIZE = { h1: 'text-h1', h2: 'text-h2', h3: 'text-h3' } as const;
+const headingClass = SIZE[size];
+
+/* A lede supplied as a slot wins over the prop, for copy that needs markup. */
+const hasLede = Boolean(lede) || Astro.slots.has('lede');
+---
+
+<div
+  id={id}
+  class:list={[
+    'flex flex-col gap-md',
+    split && hasLede && 'md:grid md:grid-cols-12 md:items-end md:gap-lg',
+    className,
+  ]}
+>
+  <div class:list={['flex flex-col gap-xs', split && hasLede && 'md:col-span-7', measure && 'measure']}>
+    {eyebrow && <p class="text-eyebrow">{eyebrow}</p>}
+    {headingLevel === 'h1' && <h1 class={headingClass}>{heading}</h1>}
+    {headingLevel === 'h2' && <h2 class={headingClass}>{heading}</h2>}
+    {headingLevel === 'h3' && <h3 class={headingClass}>{heading}</h3>}
+    {headingLevel === 'h4' && <h4 class={headingClass}>{heading}</h4>}
+  </div>
+
+  {
+    hasLede && (
+      <p class:list={['text-lede text-secondary measure', split && 'md:col-span-5']}>
+        <slot name="lede">{lede}</slot>
+      </p>
+    )
+  }
+</div>

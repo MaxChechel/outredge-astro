@@ -1,0 +1,69 @@
+---
+import { getImage } from 'astro:assets';
+import { videoUrl } from '../../lib/media';
+
+/**
+ * A looping product clip (§4.5, §7).
+ *
+ * Ships a poster and NO source: src/scripts/clips.ts attaches the MP4 only when
+ * the clip nears the viewport, so a page with seven clips fetches none of them
+ * on load. Never bare `autoplay`.
+ *
+ * `label` is required and the component throws without one, because a video
+ * element with no accessible name is not shippable. The visible pause control is
+ * likewise not optional: these loop well past five seconds, which is WCAG 2.2.2,
+ * and a hover-to-reveal control does not exist for touch or keyboard users.
+ *
+ * NOTE FOR THE STARTER: no video ships with this repo — `VIDEO_BASE` in
+ * src/lib/media.ts is a per-project decision. Drop a poster in
+ * src/assets/posters/ and point VIDEO_BASE at the pull zone, and this works
+ * unchanged.
+ */
+interface Props {
+  /** Base name under VIDEO_BASE and under src/assets/posters/. */
+  src: string;
+  aspect?: '16/9' | '3/2' | '1/1';
+  /** Accessible name. Required. */
+  label: string;
+  class?: string;
+}
+
+const { src, aspect = '16/9', label, class: className } = Astro.props as Props;
+
+if (!label) throw new Error(`Clip "${src}" is missing its required \`label\`.`);
+
+const posters = import.meta.glob<{ default: ImageMetadata }>('../../assets/posters/*.{jpg,jpeg,png,webp}', {
+  eager: true,
+});
+const entry =
+  posters[`../../assets/posters/${src}.jpg`] ??
+  posters[`../../assets/posters/${src}.jpeg`] ??
+  posters[`../../assets/posters/${src}.png`] ??
+  posters[`../../assets/posters/${src}.webp`];
+if (!entry) throw new Error(`Clip "${src}": no poster at src/assets/posters/${src}.{jpg,png,webp}`);
+
+const poster = await getImage({ src: entry.default, format: 'webp', width: 1280 });
+---
+
+<figure class:list={['clip', className]} data-clip>
+  <div
+    class="border-line bg-subtle relative overflow-hidden rounded-md border"
+    style={`aspect-ratio: ${aspect};`}
+  >
+    <video
+      data-src={videoUrl(src)}
+      poster={poster.src}
+      width={poster.attributes.width ?? 1280}
+      height={poster.attributes.height ?? 720}
+      loop
+      muted
+      playsinline
+      preload="none"
+      aria-label={label}
+      class="h-full w-full object-cover"></video>
+
+    <button type="button" data-clip-toggle aria-label="Play video" aria-pressed="true" class="clip-toggle">
+      <span class="clip-icon" aria-hidden="true"></span>
+    </button>
+  </div>
+</figure>

@@ -1,0 +1,37 @@
+---
+import ClientLogo from '../atoms/ClientLogo.astro';
+
+/**
+ * A labelled row of third-party wordmarks (§4.2).
+ *
+ * The label is a <p>, not a heading. It introduces a list of logos rather than a
+ * section of content, so making it an <h3> puts a heading in the document
+ * outline with nothing underneath it — which is a real axe/outline finding, not
+ * a stylistic call. (Reconciliation ruling carried over from the reference
+ * build's AUDIT, deviation 6.)
+ *
+ * Sizing is ClientLogo's business; the strip only lays marks out. Extra
+ * attributes are forwarded so a caller can attach an id or a reveal hook.
+ */
+interface Props {
+  label: string;
+  logos: readonly { name: string; slug: string }[];
+  class?: string;
+  [key: string]: unknown;
+}
+
+const { label, logos, class: className, ...rest } = Astro.props as Props;
+---
+
+<div class:list={['flex flex-col gap-md', className]} {...rest}>
+  <p class="text-body-sm text-tertiary">{label}</p>
+  <ul class="logo-strip list-bare grid grid-cols-3 items-center gap-x-lg gap-y-md text-secondary">
+    {
+      logos.map(({ name, slug }) => (
+        <li>
+          <ClientLogo slug={slug} title={`${name} logo`} />
+        </li>
+      ))
+    }
+  </ul>
+</div>

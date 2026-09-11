@@ -1,0 +1,112 @@
+---
+/**
+ * Section — the page grammar (ARCHITECTURE §4.4).
+ *
+ * THE ONLY PAGE-LEVEL PARENT. It alone applies vertical section padding, the
+ * container, and the theme. A page is a stack of Sections with atoms and blocks
+ * inside; that is the whole grammar, and pages make no spacing decisions.
+ *
+ * Below Section there is a hard boundary. On children there is no
+ * `max-w-container-*` (the token is outside @theme, so the utility does not
+ * exist), no `px-*` recreating gutters, no `py-*` recreating section rhythm and
+ * no `mx-auto` page centering. Anything that must exceed its container is a
+ * Section-level decision — `width="full"`, or a new ruling — never a local
+ * override.
+ *
+ * `<Tag>` is used here and nowhere else: a dynamic tag silently disables
+ * Astro's prop-type inference, so leaf components branch on literal elements
+ * instead. Section's typing is re-verified by `astro check` on every run.
+ */
+export type SectionSpace = 'none' | 'sm' | 'md' | 'lg';
+export type SectionTheme = 'light' | 'dark';
+export type SectionWidth = 'main' | 'narrow' | 'full';
+
+interface Props {
+  /** Element to render. Use `header`/`footer` for landmarks. */
+  as?: 'section' | 'div' | 'header' | 'footer' | 'article' | 'aside';
+  /** Remaps the semantic tokens for this section and every descendant. */
+  theme?: SectionTheme;
+  /** Symmetric vertical padding. `none` is a real step, not an escape hatch. */
+  space?: SectionSpace;
+  /**
+   * Asymmetric overrides, composing with `space`: `space="md" spaceTop="lg"`
+   * gives lg top and md bottom. `nav` is the page-top step — derived as nav
+   * height plus one md step — used by the first section on a page.
+   */
+  spaceTop?: SectionSpace | 'nav';
+  spaceBottom?: SectionSpace;
+  /** Inner width. `full` keeps the wrapper and skips max-width AND site margin. */
+  width?: SectionWidth;
+  /**
+   * Opts this section's children into scroll reveal (§12.2). Default off — a
+   * page where everything animates in has no emphasis left to spend.
+   *
+   * DORMANT IN THIS BUILD. It sets `data-reveal-group` on the inner container
+   * and nothing else: the native reveal module is supplied separately, and a
+   * Section that set `data-reveal` here would hand `opacity: 0` to content with
+   * nothing on the page able to turn it back on. Wiring is a drop-in — see the
+   * reveal block in global.css §8 and the WORKLOG entry for Phase 1.
+   */
+  reveal?: boolean;
+  id?: string;
+  class?: string;
+  /** Applied to the inner container, for grid/flex composition by the caller. */
+  innerClass?: string;
+  /** Any other attribute is forwarded to the rendered element. */
+  [key: string]: unknown;
+}
+
+const {
+  as: Tag = 'section',
+  theme,
+  space = 'md',
+  spaceTop,
+  spaceBottom,
+  width = 'main',
+  reveal = false,
+  id,
+  class: className,
+  innerClass,
+  ...rest
+} = Astro.props as Props;
+
+/**
+ * Complete class strings, never assembled. The Tailwind scanner reads source as
+ * text, so `` `pt-section-${space}` `` would generate nothing at all and every
+ * section on the site would lose its padding, silently. See global.css's header.
+ */
+const PAD_TOP = {
+  none: 'pt-section-none',
+  sm: 'pt-section-sm',
+  md: 'pt-section-md',
+  lg: 'pt-section-lg',
+  nav: 'pt-section-nav',
+} as const;
+
+const PAD_BOTTOM = {
+  none: 'pb-section-none',
+  sm: 'pb-section-sm',
+  md: 'pb-section-md',
+  lg: 'pb-section-lg',
+} as const;
+
+/**
+ * `full` maps to the container-full utility, not to a missing wrapper:
+ * full-bleed is a container variant, so theme and vertical rhythm behave
+ * identically either way.
+ */
+const CONTAINER = {
+  main: 'container-main',
+  narrow: 'container-narrow',
+  full: 'container-full',
+} as const;
+
+const paddingTop = PAD_TOP[spaceTop ?? space];
+const paddingBottom = PAD_BOTTOM[spaceBottom ?? space];
+---
+
+<Tag id={id} data-theme={theme} class:list={['relative', paddingTop, paddingBottom, className]} {...rest}>
+  <div class:list={['relative', CONTAINER[width], innerClass]} data-reveal-group={reveal ? '' : undefined}>
+    <slot />
+  </div>
+</Tag>

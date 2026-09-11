@@ -81,10 +81,13 @@
   --color-inherit: inherit;
 
   /* --- Neutral ramp ------------------------------------------------------
-     PLACEHOLDER. A client project replaces these values (and --accent-* below)
-     with the brand's primitives from Figma, then re-derives both themes in §3
-     and runs `npm run verify` — the contrast matrix is what validates the
-     rebrand.
+     PROJECT: replace.
+
+     That marker is a convention, not decoration: every value a client project
+     has to swap carries it, and it is the only thing the retheme checklist in
+     README.md has to grep for. Replace these with the brand's primitives from
+     Figma, re-derive both themes in §3, and run `npm run verify` — the contrast
+     matrix is what says whether the new brand is shippable.
 
      Generated at even CIE L* steps with a constant, very low cool chroma
      (Lab a*=-0.6 b*=-3.2, tapered to neutral at the white end where the blue
@@ -95,7 +98,7 @@
 
      The steps are NOT in the --color-* namespace, so `bg-gray-500` does not
      compile. Primitives are not a vocabulary; the semantic layer is. */
-  --gray-0: #ffffff;      /* L*100 */
+  --gray-0: #ffffff;      /* PROJECT: replace — L*100 */
   --gray-25: #fbfcfd;     /* L* 99 */
   --gray-50: #f4f7fa;     /* L* 97 */
   --gray-100: #eaeef4;    /* L* 94 */
@@ -111,14 +114,21 @@
   --gray-950: #1c2024;    /* L* 12 */
   --gray-1000: #000000;   /* L*  0 */
 
-  /* Accent primitives. PLACEHOLDER, as above — a desaturated blue, present so
-     the accent role is visible and verifiable in the styleguide from day one
-     rather than being introduced (untested) by the first client.
+  /* Accent primitives. PROJECT: replace.
+
+     A REAL colour, deliberately, even though the reference site this system
+     came from is monochrome by design and resolved its accent to the text
+     colour. A starter whose accent resolves to --text-primary looks correct
+     with the accent wiring completely broken — and the starter is the one
+     artefact whose job is to exercise every token. A visible blue means a
+     snapped accent is visible too, in the one place someone would notice.
 
      Two steps, not one: an accent that clears 4.5:1 as text on a light ground
-     cannot also clear it on a dark one. Each theme picks its own. */
-  --accent-500: #3861af;  /* L*42 — the light-theme accent */
-  --accent-300: #8ba8fe;  /* L*70 — the dark-theme accent  */
+     cannot also clear it on a dark one. Each theme picks its own (§3, rule 5).
+     The styleguide exercises both in buttons, in TextLink hover and in a
+     highlight sample, so the retheme checklist has something to look at. */
+  --accent-500: #3861af;  /* PROJECT: replace — L*42, the light-theme accent */
+  --accent-300: #8ba8fe;  /* PROJECT: replace — L*70, the dark-theme accent  */
 
   /* --- Typography --------------------------------------------------------
      --font-body is emitted by Astro's font pipeline; see the `fonts` block in
@@ -210,6 +220,13 @@
   --spacing-control-sm: 2.25rem;
   --spacing-control-md: 3rem;
   --spacing-icon: 1.5rem;
+  /* The nav sizes the wordmark by WIDTH: marks arrive with wildly different
+     aspect ratios, and a width cap is the only one that keeps the bar's rhythm
+     when a project swaps its logo in. */
+  --spacing-nav-logo: 7rem;
+  /* Third-party wordmark height, and its width cap. Marks arrive with
+     inconsistent viewBoxes; capping both normalizes them optically. */
+  --spacing-logo: 2rem;
 
   /* --- Radii, borders, focus ---------------------------------------------
      No shadow tokens. The system separates with 1px rules and background steps,
@@ -244,6 +261,19 @@
        · The `--ease-*: initial` reset at the top of this block wipes anything
          --ease-* that an @import declared earlier, and @import must come first.
          So the pointer has to be declared HERE, after the reset.
+
+     AND, FOR THE SAME REASON, THE FALLBACKS ARE AN @supports BLOCK.
+     The documented way to degrade a modern value is to declare the token
+     twice — `cubic-bezier()` first, `linear()` second — and let a browser that
+     cannot parse the second keep the first. That pattern does not survive this
+     pipeline either: LIGHTNING CSS DEDUPES REPEATED CUSTOM-PROPERTY
+     DECLARATIONS IN ONE RULE AND KEEPS ONLY THE LAST, so the cubic-bezier is
+     deleted before it ships and the fallback exists in source but not in dist.
+     ./springs.css therefore emits
+     `@supports not (transition-timing-function: linear(0, 1))` instead:
+     nothing dedupes across at-rules, and a browser without linear() evaluates
+     that condition as true. The rule generalises — any two-declaration
+     fallback written anywhere in this file is a fallback that will not ship.
 
      Adding a spring is two edits: add it in scripts/springs/generate.mjs, run
      `npm run springs`, then add its pointer here. The script prints the exact
@@ -317,6 +347,11 @@
   /* A text-measure cap applied INSIDE content, never a page container. Long
      copy gets it; a grid of cards does not. */
   --container-measure: 68ch;
+
+  /* The width cap on a third-party wordmark. Outside @theme with the rest of the
+     container group, so no `max-w-logo` exists to be applied to something that
+     is not a logo. */
+  --container-logo: 8rem;
 }
 
 /* ==========================================================================
@@ -802,6 +837,11 @@
     font-size: 0.9em;
   }
 
+  /* A scrollable region must be reachable from the keyboard (WCAG 2.1.1), and
+     CSS cannot add a tab stop. Whatever renders a <pre> that can overflow — the
+     MDX highlighter, a component, hand-written markup — must put `tabindex="0"`
+     on it. axe's `scrollable-region-focusable` rule is what catches a miss, and
+     it runs in `npm run verify`. */
   .prose pre {
     overflow-x: auto;
     padding: var(--spacing-md);
@@ -983,3 +1023,339 @@
   }
 }
 
+/* ==========================================================================
+   9. COMPONENT CLASSES
+
+   The kit is written in utilities. What lands here is only what a utility
+   cannot express — pseudo-elements, ::details-content, the burger morph — plus
+   the two or three cases where a rule genuinely belongs to a behaviour rather
+   than to an element.
+
+   None of this is a card, a button or a section: those are recipes and
+   components, and giving them a class here would put their definition in two
+   places.
+   ========================================================================== */
+
+/* --- Prose / text link ---------------------------------------------------
+   The underline sits in the LINE colour and comes up to the accent on hover, so
+   a link reads as a link at rest without shouting, and the accent gets a second
+   exercised surface besides the primary button. */
+@layer components {
+  .text-link {
+    color: var(--text-primary);
+    text-decoration: underline;
+    text-decoration-color: var(--line);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    transition:
+      text-decoration-color var(--transition-duration-spring-soft) var(--ease-spring-soft),
+      color var(--transition-duration-spring-soft) var(--ease-spring-soft);
+  }
+
+  @media (hover: hover) {
+    .text-link:hover {
+      color: var(--accent);
+      text-decoration-color: var(--accent);
+    }
+  }
+
+  /* Inside .prose, links get the treatment without needing the component. */
+  .prose a:not([class]) {
+    color: var(--text-primary);
+    text-decoration-color: var(--line);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+  }
+
+  @media (hover: hover) {
+    .prose a:not([class]):hover {
+      color: var(--accent);
+      text-decoration-color: var(--accent);
+    }
+  }
+}
+
+/* --- Button icon ---------------------------------------------------------
+   Sized to the label's cap height rather than to a spacing token, so the icon
+   scales with the size variant without a second lookup table. */
+@utility size-icon-inline {
+  width: 1em;
+  height: 1em;
+  flex: none;
+}
+
+/* --- Select chevron ------------------------------------------------------
+   Drawn in CSS: no icon asset, no inline SVG, and it inherits the text colour
+   under any theme. */
+@layer components {
+  .select-icon {
+    position: absolute;
+    top: 50%;
+    right: var(--spacing-sm);
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: var(--border-width) solid currentcolor;
+    border-bottom: var(--border-width) solid currentcolor;
+    transform: translateY(-70%) rotate(45deg);
+    pointer-events: none;
+  }
+
+  /* A select showing its placeholder reads as a placeholder. */
+  .select-wrap select:has(option[value='']:checked) {
+    color: var(--text-tertiary);
+  }
+}
+
+/* --- FAQ disclosure ------------------------------------------------------ */
+@layer components {
+  .faq-item > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* A rotated corner, drawn in CSS so it costs no asset and follows
+     currentColor under any theme. */
+  .faq-chevron {
+    display: block;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-right: var(--border-width) solid var(--text-tertiary);
+    border-bottom: var(--border-width) solid var(--text-tertiary);
+    transform: translateY(-25%) rotate(45deg);
+    transition: transform var(--transition-duration-spring-soft) var(--ease-spring-soft);
+  }
+
+  .faq-item[open] .faq-chevron {
+    transform: translateY(25%) rotate(225deg);
+  }
+
+  /* Spring-eased open/close.
+     A <details> panel is display:none when closed, so its height cannot be
+     transitioned directly — `::details-content` is the box that can. Animating
+     to `block-size: auto` needs `interpolate-size`, scoped to the accordion
+     rather than set on :root so it does not change auto-interpolation
+     site-wide, and `transition-behavior: allow-discrete` carries the discrete
+     content-visibility flip across the same duration instead of snapping it at
+     the start.
+
+     Browsers without `::details-content` ignore all of this and keep the native
+     instant toggle, which is the current behaviour — so there is nothing to
+     guard and no way for a panel to end up stuck closed. */
+  .faq-item {
+    interpolate-size: allow-keywords;
+  }
+
+  .faq-item::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size var(--transition-duration-spring-soft) var(--ease-spring-soft),
+      content-visibility var(--transition-duration-spring-soft) var(--ease-spring-soft);
+    transition-behavior: allow-discrete;
+  }
+
+  .faq-item[open]::details-content {
+    block-size: auto;
+  }
+
+  @media (hover: hover) {
+    .faq-item:hover {
+      background-color: var(--bg-subtle);
+    }
+  }
+}
+
+/* --- Nav: mobile burger --------------------------------------------------
+   A native <details> given a hamburger that morphs to a close icon, with no
+   JavaScript and no markup beyond a single span. */
+@layer components {
+  .nav-disclosure > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  /* The panel is positioned against the header, not against the <details>. */
+  .nav-disclosure {
+    position: static;
+  }
+
+  .nav-burger,
+  .nav-burger::before,
+  .nav-burger::after {
+    display: block;
+    width: 1rem;
+    height: var(--border-width);
+    background-color: currentcolor;
+    transition:
+      transform var(--transition-duration-spring-soft) var(--ease-spring-soft),
+      opacity var(--transition-duration-fast) var(--ease-out);
+  }
+
+  .nav-burger::before,
+  .nav-burger::after {
+    content: '';
+    position: relative;
+  }
+
+  /* The bars sit at -5px / 0 / +5px. ::after is the second in-flow child, so its
+     static origin is already 1px down — hence 0.25rem here against 0.3125rem
+     above, and a symmetric 0.3125rem translate on both when open. */
+  .nav-burger::before {
+    top: -0.3125rem;
+  }
+
+  .nav-burger::after {
+    top: 0.25rem;
+  }
+
+  .nav-disclosure[open] .nav-burger {
+    background-color: transparent;
+  }
+
+  .nav-disclosure[open] .nav-burger::before {
+    transform: translateY(0.3125rem) rotate(45deg);
+  }
+
+  .nav-disclosure[open] .nav-burger::after {
+    transform: translateY(-0.3125rem) rotate(-45deg);
+  }
+}
+
+/* --- Nav: desktop dropdown -----------------------------------------------
+   VISIBILITY IS CSS'S JOB, driven off `aria-expanded` on the adjacent trigger.
+   src/scripts/disclosure.ts writes that one attribute and nothing else, so the
+   accessible state and the visual state cannot drift apart — they are the same
+   fact read twice.
+
+   `visibility` rather than `display`, deliberately: it is discrete-animatable
+   with a plain `transition: visibility 0s linear <delay>`, it removes the panel
+   from the a11y tree and from the tab order while closed, and it needs neither
+   `@starting-style` nor `transition-behavior: allow-discrete` — both of which
+   Lightning CSS may strip for its hardcoded Safari 16.4 target (see §1). The
+   open transition therefore runs everywhere, rather than only in browsers new
+   enough for the fashionable syntax. */
+@layer components {
+  .nav-panel {
+    position: absolute;
+    top: calc(100% + var(--spacing-sm));
+    left: 0;
+    z-index: 50;
+    width: max-content;
+    max-width: min(24rem, calc(100vw - var(--site-margin) * 2));
+    visibility: hidden;
+    opacity: 0;
+    transform: translateY(-0.25rem);
+    transition:
+      opacity var(--transition-duration-spring-soft) var(--ease-spring-soft),
+      transform var(--transition-duration-spring-soft) var(--ease-spring-soft),
+      visibility 0s linear var(--transition-duration-spring-soft);
+  }
+
+  [aria-expanded='true'] + .nav-panel {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity var(--transition-duration-spring-soft) var(--ease-spring-soft),
+      transform var(--transition-duration-spring-soft) var(--ease-spring-soft),
+      visibility 0s;
+  }
+
+  .nav-caret {
+    display: block;
+    width: 0.4rem;
+    height: 0.4rem;
+    border-right: var(--border-width) solid currentcolor;
+    border-bottom: var(--border-width) solid currentcolor;
+    transform: translateY(-25%) rotate(45deg);
+    transition: transform var(--transition-duration-spring-soft) var(--ease-spring-soft);
+  }
+
+  [aria-expanded='true'] .nav-caret {
+    transform: translateY(25%) rotate(225deg);
+  }
+
+  .nav-panel-link {
+    transition: background-color var(--transition-duration-spring-soft) var(--ease-spring-soft);
+  }
+
+  @media (hover: hover) {
+    .nav-panel-link:hover {
+      background-color: var(--bg-subtle);
+    }
+  }
+}
+
+/* --- Third-party wordmarks -----------------------------------------------
+   Height-driven with a width cap. The per-mark aspect ratio is set inline from
+   its viewBox so the width derives correctly — see ClientLogo.astro for why
+   that is not optional. */
+@layer components {
+  .client-logo {
+    height: var(--spacing-logo);
+    width: auto;
+    /* min() keeps the cap without letting a wide mark exceed its grid column at
+       320px, where a three-up strip gives each mark ~85px. */
+    max-width: min(var(--container-logo), 100%);
+    opacity: 0.72;
+    transition: opacity var(--transition-duration-spring-soft) var(--ease-spring-soft);
+  }
+
+  @media (hover: hover) {
+    .logo-strip:hover .client-logo {
+      opacity: 1;
+    }
+  }
+}
+
+/* --- Clip ----------------------------------------------------------------
+   The pause/play affordance for looping video. ALWAYS VISIBLE: these clips run
+   well past five seconds, so WCAG 2.2.2 requires a control, and a
+   hover-to-reveal one does not exist for touch or keyboard users. */
+@layer components {
+  .clip-toggle {
+    position: absolute;
+    right: var(--spacing-sm);
+    bottom: var(--spacing-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--spacing-icon);
+    height: var(--spacing-icon);
+    padding: var(--spacing-sm);
+    border: var(--border-width) solid var(--line-strong);
+    border-radius: var(--radius-full);
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    transition: background-color var(--transition-duration-spring-soft) var(--ease-spring-soft);
+  }
+
+  @media (hover: hover) {
+    .clip-toggle:hover {
+      background-color: var(--bg-subtle);
+    }
+  }
+
+  /* Play triangle by default, two bars once playing. Both drawn in CSS so the
+     control costs no icon asset and follows currentColor under any theme. */
+  .clip-icon {
+    display: block;
+    width: 0;
+    height: 0;
+    margin-left: 0.125rem;
+    border-top: 0.3125rem solid transparent;
+    border-bottom: 0.3125rem solid transparent;
+    border-left: 0.5rem solid currentcolor;
+  }
+
+  .clip.is-playing .clip-icon {
+    width: 0.5rem;
+    height: 0.625rem;
+    margin-left: 0;
+    border: 0;
+    background-image: linear-gradient(
+      to right,
+      currentcolor 0 0.1875rem,
+      transparent 0.1875rem 0.3125rem,
+      currentcolor 0.3125rem 0.5rem
+    );
+  }
+}

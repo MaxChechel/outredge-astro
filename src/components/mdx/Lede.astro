@@ -1,0 +1,14 @@
+---
+/**
+ * The opening paragraph of a body (§4.5).
+ *
+ * A named type style, not a size chosen at the call site — `.text-lede` is
+ * `--text-md`, the step that exists specifically for this job (§2.1).
+ */
+interface Props {
+  class?: string;
+}
+const { class: className } = Astro.props as Props;
+---
+
+<p class:list={['text-lede text-secondary measure', className]}><slot /></p>
