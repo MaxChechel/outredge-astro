@@ -46,6 +46,13 @@ documentation: every layer opens with its rule and the trap that rule avoids.
 > const SIZE = (s) => `text-${s}`;                 // scanner sees neither
 > ```
 
+> **These two rules, 2.1.1, and the `as`-prop finding in 4.2 are one family, and
+> the family is this spec's actual thesis: THE COMPILER'S REALITY OUTRANKS THE
+> DOCUMENTATION IN YOUR HEAD.** Each member is a place where correct-looking
+> source produces nothing, silently, because a tool's behaviour differs from the
+> mental model of it. None of them can be caught by review. All of them are
+> caught by reading built output. That is why 9 is not a formality.
+
 > **The corollary rule: a token namespace is a fact about Tailwind, not a naming
 > preference.** Three namespaces in this system exist under names nobody would
 > choose, because they are the only names that generate the utility:
@@ -474,8 +481,12 @@ missing required slot **fails the build**.
   `_headers` (security + immutable `_astro`) and `_redirects` in repo. Old URLs
   301, never 404.
 - Forms: Pages Function + invisible Turnstile (contact page only) + honeypot +
-  time floor. Form ships visibly disabled until the endpoint is verified end to
-  end.
+  time floor. **The form ships visibly disabled until the endpoint is verified
+  end to end**, and that is an assertion, not a convention: 9's contract check
+  fails the build if a page with no configured endpoint renders an enabled submit
+  control. An unconfigured endpoint silently swallowing an enquiry is the most
+  expensive failure a marketing site has, and it is the default state of every
+  form nobody has verified.
 - **The delivery hop is swappable.** Everything after validation sits behind a
   single `sendLead()` function boundary inside the Pages Function — email today
   (Resend), a CRM tomorrow — **and swapping it touches neither the form nor the
@@ -502,8 +513,18 @@ missing required slot **fails the build**.
   it, and the matrix says whether the new brand is shippable.
 - `astro check` clean; axe-core (wcag2a/aa/21aa/22aa + best-practice) 0
   violations.
+- **Contract assertions** against the built HTML for rules the compiler cannot
+  enforce (see below).
 - Lighthouse mobile, homepage + heaviest page, behind real host config:
   **100/100/100/100 is the bar**, numbers recorded.
+
+**Two commands, two contracts.** `npm run verify` runs on every commit: it is
+fast, hermetic and deterministic, and nothing environmental goes in it — an
+audit that flakes inside the one command that must never be doubted teaches
+people to doubt it. `npm run lighthouse` runs at every phase gate, against
+`wrangler pages dev` so `_headers`, `_redirects` and the Functions are real. It
+is scripted rather than performed by hand, because a gate number nobody can
+reproduce is a number nobody should record.
 
 **The harness is part of the repo.** It lives in `scripts/verify/`, versioned
 alongside the code it checks, and is never a scratch script in `/tmp`.
@@ -511,6 +532,26 @@ alongside the code it checks, and is never a scratch script in `/tmp`.
 **Every check reports its own executed count, and a pass with zero reported
 checks is a failure.** A verification that cannot say how much it verified has
 not verified anything.
+
+**A harness that has never failed is a harness nobody has tested.** Every check
+must demonstrate its own failure mode once — fault-inject the thing it exists to
+catch, watch it fail with a legible message and a non-zero exit, restore — before
+that check counts as part of the pass. A check whose red path has never run is an
+assertion about the harness, not about the code.
+
+**A check with manual setup is a check that dies.** Anything a check needs to
+run — a browser, `axe-core`, a pinned CLI — is wired so that `npm run verify`
+works on a fresh clone after `npm install`. Tooling that must be fetched and
+unpacked by hand before the a11y pass runs is tooling that gets skipped exactly
+when it matters. `axe-core` is therefore a devDependency; devDependencies do not
+ship.
+
+**A rule that only convention enforces is a rule that will be broken.** Where a
+rule is stated in this document but produces no compile error — the form ships
+disabled (8), production emits no styleguide route (2.4/10) — it is asserted
+against the BUILT OUTPUT in `scripts/verify/contracts.mjs`. The system's recurring
+move is convention → compile error where possible, convention → assertion where
+not; "documented" is the weakest of the three and is never the resting place.
 
 Both rules are paid for. In the Outredge build, (1) a sweep script was deleted
 out of `/tmp` between runs, so `grep -c` counted an empty stream and reported a

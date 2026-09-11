@@ -10,7 +10,8 @@
     "preview": "astro preview",
     "check": "astro check",
     "springs": "node scripts/springs/generate.mjs",
-    "verify": "node scripts/verify/run.mjs"
+    "verify": "node scripts/verify/run.mjs",
+    "lighthouse": "node scripts/verify/lighthouse.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.1",

@@ -14,6 +14,7 @@
 import { spawn } from 'node:child_process';
 import { line, passed, ok, bad, dim } from './lib/report.mjs';
 import { contrast } from './contrast.mjs';
+import { contracts } from './contracts.mjs';
 import { jsCensus } from './js-census.mjs';
 import { sweep } from './sweep.mjs';
 import { axe } from './axe.mjs';
@@ -88,6 +89,8 @@ try {
   // --- static checks, straight off dist --------------------------------------
   results.push(contrast());
   results.push(jsCensus());
+  process.stdout.write(dim('  build contracts…             \r'));
+  results.push(contracts());
 
   // --- serve, then the rendered checks ---------------------------------------
   process.stdout.write(dim('  starting preview server…\r'));

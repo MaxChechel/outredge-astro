@@ -40,7 +40,8 @@ npm run build             # production: the styleguide route is NOT emitted
 npm run build:styleguide  # includes /styleguide — what verify is pointed at
 npm run preview           # serve the last build
 
-npm run verify            # the full ARCHITECTURE §9 pass. This is the gate.
+npm run verify            # the §9 pass. Every commit. Fast, hermetic, never doubted.
+npm run lighthouse        # the §9 gate audit, behind wrangler pages dev. Every phase gate.
 npm run check             # astro check on its own
 npm run springs           # regenerate the linear() spring easings
 ```
@@ -57,13 +58,42 @@ real output:
 | JS census | every script in `dist` is named, justified and inside its gzipped budget. An undeclared one fails the run |
 | overflow + structure | no horizontal overflow at 320/360/390/430/768/1024/1440, exactly one `h1`, zero heading skips, every image with dimensions and a non-null alt |
 | axe-core | wcag2a/aa, 21a/aa, 22aa and best-practice, at 390 and 1440, zero violations |
+| build contracts | rules the compiler cannot enforce, asserted against the built HTML: a form with no configured endpoint ships disabled, a production build emits no styleguide route |
 
 **Every check reports its own executed count, and a check reporting zero fails
 the run even with zero failures.** A verification that cannot say how much it
 verified has not verified anything — this system has shipped a green result from
 a broken harness before, and the counting is the fix.
 
+**Every check has demonstrated its own failure mode.** A harness that has never
+failed is a harness nobody has tested, so each check was fault-injected — the
+thing it exists to catch was introduced, the check failed with a legible message
+and exit 1, and the fault was reverted. One of those injections found a bug in
+the check itself. A new check does not count as part of the pass until it has
+done the same.
+
 Needs Google Chrome. Set `CHROME=/path/to/chrome` if it is somewhere unusual.
+
+### `npm run lighthouse`
+
+Deliberately **not** part of `verify`. Verify's contract is fast and
+deterministic; an environmental audit inside it would teach people to tolerate
+flakiness in the one command that must never be doubted. So:
+
+- **`verify` runs on every commit.** Hermetic, ~30s, exit code is the truth.
+- **`lighthouse` runs at every phase gate.** It builds, serves through
+  `wrangler pages dev` — which is what makes `_headers`, `_redirects` and the
+  Pages Functions real rather than approximated — and audits mobile.
+
+It is scripted rather than performed by hand, because a gate number nobody can
+reproduce is a number nobody should record. Both CLIs are fetched by pinned
+`npx --yes`: gate-only, large, and every project copied from this template would
+otherwise pay for them on `npm install`. The pin is what makes it reproducible.
+
+Reports land in `.verify/lighthouse/` (gitignored). Record the scores in
+`WORKLOG.md` with the standing caveat that they are **pre-CDN and measured on a
+developer machine** — the production figure is measured against the real host
+after deploy.
 
 ---
 

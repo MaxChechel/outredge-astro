@@ -576,3 +576,338 @@ it.
    against `wrangler pages dev` instead.
 
 **Phase 2 complete. Stopping for review.**
+
+---
+
+## 2026-09-11 — Entry 6. Rulings applied; §2.1.1, axe, Lighthouse, contracts
+
+All four closed as ruled.
+
+- **§2.1.1 approved as a stated pattern**, and the framing goes further than I had
+  it. The head of ARCHITECTURE §2 now names the family explicitly: the
+  scanner-reads-text rule, the namespace-is-a-fact rule, §2.1.1, and the `as`-prop
+  finding in §4.2 are four members of one thesis — **the compiler's reality
+  outranks the documentation in your head.** Each is a place where correct-looking
+  source produces nothing, silently, because a tool behaves differently from the
+  mental model of it. None can be caught by review; all are caught by reading
+  built output. That is stated as *why §9 is not a formality*.
+- **axe as a devDependency approved**, with the framing promoted to a §9 rule:
+  **a check with manual setup is a check that dies.** Anything a check needs is
+  wired so `npm run verify` works on a fresh clone after `npm install`.
+- **Q8 split as ruled.** Lighthouse stays out of `verify` and is now
+  `npm run lighthouse`, scripted against `wrangler pages dev`. §9 states the
+  permanent shape: *verify = every commit, lighthouse = every gate*, and the
+  reason — an environmental audit inside the one command that must never be
+  doubted teaches people to doubt it.
+- **The ships-disabled rule graduated from convention to assertion**, per the
+  ruling, before Phase 3's pass so the final numbers include it.
+
+**One rule added to §9, verbatim from the ruling:**
+
+> A harness that has never failed is a harness nobody has tested.
+
+with the requirement it carries: every check must demonstrate its own failure mode
+once — fault-inject the thing it exists to catch, watch it fail legibly with a
+non-zero exit, restore — **before that check counts as part of the pass.** A check
+whose red path has never run is an assertion about the harness, not about the code.
+
+And its generalisation, which is what the whole system keeps doing:
+
+> A rule that only convention enforces is a rule that will be broken. Convention →
+> compile error where possible, convention → assertion where not. "Documented" is
+> the weakest of the three and is never the resting place.
+
+### `scripts/verify/contracts.mjs` — and it caught a bug in itself immediately
+
+Two contracts, both rules that were previously only paragraphs:
+
+1. **A form with no configured endpoint ships disabled** (§8). Asserted on the
+   BUILT HTML, because the rule is about what a visitor receives:
+   `data-contact-ready` absent ⇒ every non-honeypot control must carry `disabled`.
+2. **A production build emits no styleguide route** (§2.4/§10). Runs a real
+   production build into a scratch directory and looks. A leaked styleguide on a
+   client site publishes that client's token values, component inventory and
+   internal notes to anyone who guesses the URL.
+
+**The first fault injection passed, and it should not have.** Removing `disabled`
+from the submit control did not fail the check. Cause: the test was
+`/\bdisabled\b/` on the raw tag, and every button in this system carries Tailwind's
+`disabled:pointer-events-none disabled:opacity-40` in its class list — `disabled`
+followed by `:` is a word boundary, so **the naive test returned true for every
+button whether or not it was disabled.** The contract would have passed forever
+while asserting nothing.
+
+Fixed by blanking quoted attribute VALUES before matching, so only attribute names
+remain. Re-injected: fails correctly with
+`contact.html: SUBMIT CONTROL IS ENABLED on a build with no configured endpoint
+(§8)`, exit 1.
+
+That is the new §9 rule earning its place within an hour of being written. The
+check that was meant to catch a class of bug was itself an instance of the class
+it was written for — a check that looks right and asserts nothing.
+
+### Every check has now demonstrated its failure mode
+
+| check | injected fault | result |
+| --- | --- | --- |
+| contrast matrix | dark `--text-tertiary` moved one ramp step | `dark --text-tertiary on --bg-surface = 4.04:1 (needs 4.5:1) — #8f9499 on #313539`, exit 1 |
+| JS census | an undeclared inline `<script>` | `UNNAMED script in index.html — 52 B raw` + the §6 rule, exit 1 |
+| build contracts | `disabled` removed from the submit control | `SUBMIT CONTROL IS ENABLED…`, exit 1 (after fixing the check) |
+| build contracts | styleguide route forced into production | `PRODUCTION BUILD EMITTED THE STYLEGUIDE: styleguide.html`, exit 1 |
+| overflow + structure | a 3000px-wide child | 7 of 21 checks fail, naming the width and the element, exit 1 |
+| axe-core | `<button type="button"></button>` | `button-name (critical, 1 node): Buttons must have discernible text`, exit 1 |
+| the counting rule | a check reporting 0 assertions | reports `EMPTY`, `passed()` false |
+
+Full runner exits 1 on any of these and 0 on a clean tree.
+
+### The Lighthouse gate found a real defect on its first run
+
+**No `/robots.txt`.** SEO 92 on the homepage, `robots-txt (0)`. The reference build
+shipped `robots.txt.ts` and `sitemap.xml.ts` as routes; neither came across in
+Phase 2 and nothing had noticed, because nothing had looked. Both added:
+
+- **`robots.txt` is a route, not a file in `public/`** — the `Sitemap:` line needs
+  the absolute production URL, and `site` is the only place that is declared. A
+  hand-written `public/robots.txt` is a file that says the wrong hostname on the
+  first project that copies this repo and forgets to edit it. No `Disallow` for
+  the styleguide: a production build emits no such route, and a `Disallow` line for
+  a URL that does not exist is an advertisement for it.
+- **`sitemap.xml` is hand-rolled and DERIVED**, not written out. `@astrojs/sitemap`
+  is one more dependency for forty lines and would need configuring to exclude the
+  styleguide anyway. The page list comes from `import.meta.glob` over the routes
+  that exist, filtered the same way Astro filters them — underscore-prefixed files
+  are not routes, which is how the styleguide gate works, so the same filter keeps
+  it out of the sitemap for free. A hand-maintained sitemap is a second source of
+  truth for what the site contains, and §5's rule about second lists applies to
+  URLs as much as to work items.
+
+**The styleguide's SEO category is no longer audited, and that is not gaming it.**
+The page is deliberately `noindex`, so Lighthouse's `is-crawlable` audit fails it
+by design and caps its SEO score forever. Auditing SEO there measures the gate
+rather than the page, and a permanently-red number is a number people learn to
+scroll past — the same failure mode as flakiness inside `verify`. Performance,
+accessibility and best-practices are all still measured on it, and they are what
+the dense page exists to stress. The omission is printed in the output with its
+reason (`not audited: seo — noindex by design`) rather than being silent.
+
+The page was NOT thinned to protect a score. `dom-size (50)` is reported on the
+styleguide and left alone: it is the densest page the system will ever render, on
+purpose, and it still scores 100 for performance.
+
+---
+
+## 2026-09-11 — Entry 7. Phase 3: verification and handoff state
+
+The starter is complete. This entry is the handoff record: what came from where,
+what was measured, what deviates from the inputs, and what is still open.
+
+### Provenance table — the whole repo
+
+**ported** = lifted essentially unchanged · **genericized** = lifted, then stripped
+of Outredge-specific content and values · **new** = written here, no equivalent
+existed.
+
+| file | provenance | note |
+| --- | --- | --- |
+| `ARCHITECTURE.md` | genericized | Reference spec, all 13 brief amendments, plus five rules earned during this build (see below). v2 → v3. |
+| `README.md` | new | Stack, commands, the numbered new-client checklist, repo map. |
+| `WORKLOG.md` | new | This file. |
+| `package.json`, `tsconfig.json`, `.gitignore` | genericized | tsconfig keeps the `exclude` fix and the comment saying why. |
+| `astro.config.mjs` | genericized | Same skeleton; `site`/fonts are placeholders; adds the styleguide-route integration and a modern `cssTarget`. |
+| `src/styles/global.css` | genericized | Layer model, base reset and several component blocks share the reference's DNA; the entire token layer is new. 1,397 lines, most of them documentation. |
+| `src/styles/springs.css` | new (generated) | Committed output of the generator. |
+| `scripts/springs/generate.mjs` | new | |
+| `src/lib/urls.ts` | ported | Byte-identical. |
+| `src/lib/media.ts` | genericized | |
+| `src/lib/items.ts` | new | The view-model adapter. |
+| `src/content.config.ts` | new | CMS-shaped from the first commit. |
+| `src/data/navigation.ts` | new | One source per list. |
+| `src/components/Section.astro` | genericized | Container utilities replace `max-w-*`; `reveal` added; `theme` widened to dark. |
+| `atoms/Button.astro` | genericized | Same API, rebuilt on the accent/line tokens. |
+| `atoms/TextLink.astro` | genericized | Settles the reference's open underline-colour question. |
+| `atoms/VisuallyHidden.astro`, `atoms/JsonLd.astro` | ported | |
+| `atoms/FormField.astro` | genericized | Rewritten to §4.1's explicit `for`/`id` + `aria-describedby`; `disabled` added for §8. |
+| `atoms/Logo.astro` | genericized | The real Outredge mark, supplied by Max, marked `PROJECT: replace`. |
+| `atoms/ClientLogo.astro` | genericized | viewBox→`aspect-ratio` derivation kept verbatim — that bug is expensive and already paid for. |
+| `blocks/SectionHeader.astro` | genericized | Rebuilt: the reference version carried its own `px-gutter`, a §4.4 violation. |
+| `blocks/Faq.astro` | genericized | Same `::details-content` technique, now spring-eased. |
+| `blocks/CtaBanner.astro` | genericized | Now a block, not a Section. |
+| `blocks/LogoStrip.astro` | genericized | Including the label-is-a-`<p>` reconciliation ruling. |
+| `blocks/ItemCard.astro` | new | The card pattern's worked example. |
+| `mdx/Figure.astro`, `mdx/Lede.astro`, `mdx/index.ts` | genericized | |
+| `mdx/Clip.astro` | genericized | Ported whole, including every media rule. On no page — see Q6. |
+| `shells/BaseLayout.astro` | genericized | Fonts/favicons are commented slots. |
+| `shells/Nav.astro` | genericized | Same one-source links and `<details>` mobile menu; the dropdown disclosure is new. |
+| `shells/Footer.astro` | genericized | Now a Section, so it shares the container. |
+| `src/scripts/clips.ts` | ported | Byte-identical. |
+| `src/scripts/disclosure.ts` | new | |
+| `src/scripts/contact.ts` | genericized | Plus the ready-gate and a bfcache re-stamp. |
+| `src/pages/index.astro`, `contact.astro` | new | |
+| `src/pages/_styleguide.astro` | new | Structure and annotation density from `styleguide-mock-v2.html`, extended per the brief. |
+| `src/pages/robots.txt.ts`, `sitemap.xml.ts` | genericized | Same idea as the reference's; the sitemap is now derived rather than listed. |
+| `scripts/verify/lib/cdp.mjs` | genericized | Chrome discovered across platforms with a loud failure. |
+| `scripts/verify/lib/report.mjs`, `lib/contrast.mjs` | new | |
+| `scripts/verify/sweep.mjs`, `axe.mjs` | genericized | Plus the visibility filter and the lazy-image force. |
+| `scripts/verify/contrast.mjs`, `js-census.mjs`, `contracts.mjs`, `run.mjs`, `lighthouse.mjs` | new | |
+| `scripts/subset-fonts.py`, `grab-posters.py`, `stage-videos.py` | genericized | Every export path and rename table replaced with an empty, commented `PROJECT:` table that no-ops until filled. |
+| `public/_headers` | genericized | Same policy; the CSP note now explains why it is not a nonce. |
+| `public/_redirects` | new | Ships commented — an empty redirects file is correct for a new site. |
+| `functions/api/contact.ts` | genericized | Rebuilt around the `sendLead()` boundary. |
+
+**No Outredge content came across**: no copy, no case studies, no client assets,
+no work/testimonial data, no case-study collection. The only Outredge artefact in
+the repo is the wordmark, which is this repo's own identity and is marked
+`PROJECT: replace`.
+
+### Final verification — §9, full pass
+
+```
+  PASS  astro check            1 type-check run                       0 failures
+  PASS  contrast matrix        38 token pairs                         0 failures
+  PASS  JS census              5 scripts found in dist (+1 walk)      0 failures
+  PASS  build contracts        2 contract assertions                  0 failures
+  PASS  overflow + structure   21 page/width checks (3 × 7 widths)    0 failures
+  PASS  axe-core               6 page/width runs (6 tag sets)         0 failures
+
+  6 checks, 73 assertions executed          §9 PASS
+```
+
+- **Seven widths** — 320/360/390/430/768/1024/1440 — across home, contact and
+  styleguide: no overflow, exactly one `h1` per page, zero heading skips, every
+  image with dimensions and a non-null alt.
+- **axe-core** wcag2a/aa + 21a/aa + 22aa + best-practice at 390 and 1440:
+  **0 violations.**
+- **`astro check`**: 0 errors, 0 warnings, 0 hints.
+- **Contrast matrix 18/18** on the core text×background group, floor **5.05:1**
+  (dark `--text-tertiary` on `--bg-surface`). Plus 8 accent pairs (floor 5.16) and
+  12 line pairs (floor 3.87 against WCAG 1.4.11's 3:1). **38 pairs total, computed
+  from the built CSS.**
+
+### Lighthouse, mobile, behind `wrangler pages dev`
+
+| page | performance | accessibility | best-practices | SEO |
+| --- | --- | --- | --- | --- |
+| `/` | **100** | **100** | **100** | **100** |
+| `/styleguide` | **100** | **100** | **100** | not audited — `noindex` by design |
+
+**Standing caveat, and it is not a formality: these are PRE-CDN, measured on a
+developer machine.** They are a gate reading, not the production figure. The
+production figure is measured against the real host after deploy, and the numbers
+recorded at that point are the ones that count.
+
+Reported and deliberately not chased: `dom-size (50)` on the styleguide. It is the
+densest page the system will ever render, on purpose, and it still scores 100 for
+performance. The page was not thinned to protect a number.
+
+### Measured sizes
+
+| | |
+| --- | --- |
+| **CSS** | 31,373 B raw, **7,476 B gzipped** — the whole system, both themes, all component classes |
+| **JavaScript** | **1,280 B gzipped across 4 scripts. Zero `.js` files in `dist`** |
+| — nav disclosure | 659 B raw / **347 B gz**, on each of three pages |
+| — contact enable | 362 B raw / **239 B gz**, on the contact page only |
+| — clip playback | declared, budgeted, on no page |
+| **Fonts** | none. System stack until a project adds one (§7) |
+| `index.html` | 22,082 B raw, 5,740 B gz |
+| `contact.html` | 20,014 B raw, 5,391 B gz |
+| `styleguide.html` | 107,809 B raw, 18,906 B gz |
+| **Whole `dist/`** | **260 KB**, including three placeholder images |
+| Dependencies | **3** runtime (`astro`, `@astrojs/mdx`, `zod`), 5 dev |
+| `global.css` | 1,397 lines |
+| `ARCHITECTURE.md` | 662 lines |
+| Verify harness | 10 files, ~1,280 lines, versioned in the repo |
+
+The JS budget is worth stating against the reference: that build shipped 543 B
+gzipped on the pages that needed it. This one ships 347 B on every page and 586 B
+on the contact page, for strictly more behaviour (a keyboard-operable dropdown
+disclosure the reference did not have).
+
+### Deviations from the inputs, in one place
+
+Each is argued in full in the entry that introduced it.
+
+1. **Amendment 7 reversed** (Entry 4) — the type scale is named for role, not
+   size, matching `styleguide-mock-v2.html`. Ruled by Max; values unchanged.
+2. **`--spacing-*`, not `--space-*`** (Entry 1, ruling approved) — the namespace
+   is what generates `p-*`/`gap-*`.
+3. **`--transition-duration-*`, not `--dur-*`** (Entry 1, ruling approved) — same
+   reason. The reference ships this bug live.
+4. **The `cubic-bezier`-then-`linear()` fallback is an `@supports` block**
+   (Entry 1, ruling approved) — Lightning CSS dedupes repeated declarations, so
+   the documented pattern does not survive the build.
+5. **The accent is a real colour, not monochrome** (Entry 1, ruled a deliberate
+   improvement) — a starter whose accent resolves to `--text-primary` hides broken
+   accent wiring in the one artefact whose job is to exercise everything.
+6. **`CtaBanner` is a block, not a Section** (Entry 3) — the reference version
+   wrapped its own Section, which is a §4.4 violation.
+7. **`Figure`/`Clip` live in `mdx/`, not `blocks/`** (Entry 3) — the brief's list
+   groups them under Blocks; ARCHITECTURE §4.5 says explicitly they are not blocks.
+   ARCHITECTURE is law. **The two inputs disagree; this is the one still worth a
+   word in the spec or the brief so the next reader is not caught by it.**
+8. **`axe-core` is a devDependency** (Entry 5, ruling approved).
+9. **Three token groups sit outside `@theme`** (Entries 1, 4, ruling approved) —
+   semantic colours, the type scale, the layout tokens. Stated as §2.1.1.
+10. **Lighthouse is a separate script, not part of `verify`** (Entry 6, ruled).
+
+### Five rules this build earned, now in the spec
+
+None of these were in the inputs. Each came from something that broke.
+
+1. **§2 — the family.** Scanner-reads-text, namespace-is-a-fact, §2.1.1 and the
+   `as`-prop finding are one thesis: the compiler's reality outranks the
+   documentation in your head.
+2. **§2.1.1 — what belongs in `@theme`.** Put a token there when every utility it
+   would generate is one you want typed; otherwise keep it out and expose the
+   legal roles.
+3. **§4.2 — `as` is reserved for Section by NAME.** An `as` prop on a leaf
+   component silently discards its entire `Props` type.
+4. **§9 — a harness that has never failed is a harness nobody has tested.**
+5. **§9 — a check with manual setup is a check that dies**, and its sibling: a
+   rule that only convention enforces is a rule that will be broken.
+
+### Six bugs the system caught before its first client
+
+1. `--duration-*` is not a Tailwind namespace — **live in the reference build**.
+2. Lightning CSS deletes `linear()` from `@theme` for its hardcoded Safari 16.4
+   target; both spring tokens were vanishing from `dist`.
+3. The documented two-declaration fallback is deduped away before it ships.
+4. An `as` prop on a leaf component discards its `Props` type — every prop on that
+   component silently stopped being checked.
+5. The contact form enabled itself on an unconfigured build. **Logged to the
+   Outredge repo's `PENDING-CLEANUP.md` as well**, per Max's instruction: the two
+   contact functions are about to be shared DNA, so a defect in one is a defect in
+   both. (That is the single write into the reference repo during this build; the
+   never-modify ground rule held otherwise.)
+6. The contract written to catch (5) asserted nothing, because Tailwind's
+   `disabled:` variant classes made every button test as disabled.
+
+Plus two in the styleguide's own furniture, both found by axe: `mix-blend-mode`
+swatch labels axe cannot evaluate and that genuinely fail mid-ramp, and an
+`opacity: 0.8` that knocked the tightest light-theme pair below AA — on the page
+that exists to prove the contrast rule.
+
+### Open questions carried forward
+
+6. **`Clip` is unexercised.** No video ships with the starter and there is no
+   `ffmpeg` on this machine to fabricate one. It is ported whole, declared and
+   budgeted in the census, and on no page. The first project with real media
+   exercises it. My recommendation stands: leave it — video in git is exactly what
+   `VIDEO_BASE` exists to avoid.
+9. **The reveal system is dormant**, per the Phase 1 ruling. `Section`'s `reveal`
+   prop sets `data-reveal-group`; nothing carries `data-reveal`, so nothing is
+   hidden. Wiring the supplied module is: add `data-reveal` to children, add the
+   `.js` one-liner to `BaseLayout` — **and that one-liner must be blocking in
+   `<head>`, not deferred**, or every revealed element paints visible and then
+   snaps to hidden.
+10. **Deviation 7** (`Figure`/`Clip` location) is the one place the brief and
+    ARCHITECTURE still disagree on the record.
+
+### Handoff state
+
+- `npm run verify` — green, 73 assertions.
+- `npm run lighthouse` — 100/100/100/100.
+- Working tree clean, four commits, every phase gated and reviewed.
+- **No client project scaffolded.** Per the brief, this stops here.
+
+**Phase 3 complete. The template flag is Max's.**
