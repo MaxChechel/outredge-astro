@@ -11,13 +11,41 @@
  * IS the control's boundary — the only thing saying "you can type here" — which
  * is WCAG 1.4.11's 3:1 case, and `--line` is nowhere near it. The two line
  * tokens exist for exactly this distinction.
+ *
+ * ONE COMPONENT, NOT FIVE. Text, textarea, select, checkbox and radio all route
+ * through here, because the part worth sharing is not the control — it is the
+ * label wiring, the error slot, the `aria-describedby`/`aria-invalid` pair and
+ * the disabled state. Five components would re-implement that five times and
+ * drift four ways. The control is the easy half.
+ *
+ * Checkbox and radio invert the layout — control first, label beside it — which
+ * is the one structural difference, and it lives in the template below rather
+ * than in a second component.
+ *
+ * ------------------------------------------------------------------------
+ * RADIO GROUPS ARE A PATTERN, NOT A COMPONENT (§4.1). A group of radios is a
+ * `<fieldset>` with a `<legend>`, and that is all it is:
+ *
+ *     <fieldset class="field-group flex flex-col gap-sm">
+ *       <legend class="text-body-sm text-secondary mb-xs">Engagement</legend>
+ *       <FormField type="radio" name="engagement" value="project" label="One-off project" />
+ *       <FormField type="radio" name="engagement" value="retainer" label="Retainer" />
+ *     </fieldset>
+ *
+ * The legend is what a screen reader announces before each option, and no
+ * component can supply it without also owning the layout of the options — at
+ * which point every design that wants them in two columns forks the component.
+ * `<fieldset disabled>` disables every control inside it, which is the correct
+ * way to make a whole group inert.
+ *
+ * File upload and switch are deliberately absent: build-on-demand (§4.1).
  */
 interface Props {
   label: string;
   name: string;
   /** Unique on the page. Defaults to `name`, which is usually already unique. */
   id?: string;
-  type?: 'text' | 'email' | 'tel' | 'url' | 'textarea' | 'select';
+  type?: 'text' | 'email' | 'tel' | 'url' | 'textarea' | 'select' | 'checkbox' | 'radio';
   placeholder?: string;
   required?: boolean;
   /**
@@ -29,6 +57,10 @@ interface Props {
   inputmode?: 'text' | 'email' | 'tel' | 'url';
   rows?: number;
   options?: readonly string[];
+  /** Submitted value. Required for `radio`; optional for `checkbox`. */
+  value?: string;
+  /** Initial state for `checkbox` / `radio`. */
+  checked?: boolean;
   /** Renders the error slot and points `aria-describedby` at it. */
   error?: string;
   class?: string;
@@ -37,7 +69,7 @@ interface Props {
 const {
   label,
   name,
-  id = name,
+  id,
   type = 'text',
   placeholder,
   required = false,
@@ -46,11 +78,26 @@ const {
   inputmode,
   rows = 5,
   options = [],
+  value,
+  checked = false,
   error,
   class: className,
 } = Astro.props as Props;
 
-const errorId = `${id}-error`;
+/* A radio shares its `name` with every sibling in the group, so `name` cannot
+   be the id. Fall back to name+value, which is unique within a group. */
+const fieldId = id ?? (type === 'radio' && value ? `${name}-${value}` : name);
+const errorId = `${fieldId}-error`;
+const isToggle = type === 'checkbox' || type === 'radio';
+
+if (type === 'radio' && !value) {
+  throw new Error(`FormField: radio "${name}" needs a \`value\` — a radio without one submits "on".`);
+}
+
+/* Shared across every branch below: this is the part that must not be
+   re-implemented per control. */
+const described = error ? errorId : undefined;
+const invalid = error ? 'true' : undefined;
 
 const control = [
   'w-full rounded-sm border border-line-strong bg-surface text-primary',
@@ -67,56 +114,84 @@ const control = [
 ---
 
 <div class:list={['flex flex-col gap-xs', className]}>
-  <label for={id} class="text-body-sm text-secondary">
-    {label}
-    {required && <span class="sr-only"> (required)</span>}
-  </label>
-
   {
-    type === 'textarea' ? (
-      <textarea
-        id={id}
-        name={name}
-        rows={rows}
-        placeholder={placeholder}
-        required={required}
-        disabled={disabled}
-        aria-invalid={error ? 'true' : undefined}
-        aria-describedby={error ? errorId : undefined}
-        class:list={[control, 'resize-y']}
-      />
-    ) : type === 'select' ? (
-      <span class="select-wrap relative block">
-        <select
-          id={id}
-          name={name}
-          required={required}
-          disabled={disabled}
-          aria-invalid={error ? 'true' : undefined}
-          aria-describedby={error ? errorId : undefined}
-          class:list={[control, 'appearance-none pr-xl']}
-        >
-          <option value="">Select one&hellip;</option>
-          {options.map((option) => (
-            <option value={option}>{option}</option>
-          ))}
-        </select>
-        <span class="select-icon" aria-hidden="true" />
-      </span>
+    isToggle ? (
+      /* Control first, label beside it. The label is still a real <label for>,
+         so the text is part of the click target without a wrapper. */
+      <div class="gap-sm flex items-start">
+        <span class="control-toggle-wrap">
+          <input
+            id={fieldId}
+            type={type === 'checkbox' ? 'checkbox' : 'radio'}
+            name={name}
+            value={value}
+            checked={checked}
+            required={required}
+            disabled={disabled}
+            aria-invalid={invalid}
+            aria-describedby={described}
+            class="control-toggle"
+          />
+          <span class="control-mark" aria-hidden="true" />
+        </span>
+        <label for={fieldId} class="text-body-sm text-secondary">
+          {label}
+          {required && <span class="sr-only"> (required)</span>}
+        </label>
+      </div>
     ) : (
-      <input
-        id={id}
-        type={type}
-        name={name}
-        placeholder={placeholder}
-        required={required}
-        disabled={disabled}
-        autocomplete={autocomplete}
-        inputmode={inputmode}
-        aria-invalid={error ? 'true' : undefined}
-        aria-describedby={error ? errorId : undefined}
-        class={control}
-      />
+      <Fragment>
+        <label for={fieldId} class="text-body-sm text-secondary">
+          {label}
+          {required && <span class="sr-only"> (required)</span>}
+        </label>
+
+        {type === 'textarea' ? (
+          <textarea
+            id={fieldId}
+            name={name}
+            rows={rows}
+            placeholder={placeholder}
+            required={required}
+            disabled={disabled}
+            aria-invalid={invalid}
+            aria-describedby={described}
+            class:list={[control, 'resize-y']}
+          />
+        ) : type === 'select' ? (
+          <span class="select-wrap relative block">
+            <select
+              id={fieldId}
+              name={name}
+              required={required}
+              disabled={disabled}
+              aria-invalid={invalid}
+              aria-describedby={described}
+              class:list={[control, 'appearance-none pr-xl']}
+            >
+              <option value="">{placeholder ?? 'Select one…'}</option>
+              {options.map((option) => (
+                <option value={option}>{option}</option>
+              ))}
+            </select>
+            <span class="select-icon" aria-hidden="true" />
+          </span>
+        ) : (
+          <input
+            id={fieldId}
+            type={type}
+            name={name}
+            placeholder={placeholder}
+            required={required}
+            disabled={disabled}
+            autocomplete={autocomplete}
+            inputmode={inputmode}
+            aria-invalid={invalid}
+            aria-describedby={described}
+            class={control}
+          />
+        )}
+      </Fragment>
     )
   }
 

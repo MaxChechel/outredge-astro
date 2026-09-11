@@ -301,8 +301,47 @@ The indivisible primitives every project ships:
   semantics either way. Icons are inline SVG, `currentColor`.
 - **`TextLink`** — prose links with the house underline treatment, drawn in the
   line colour.
-- **`FormField`** — label + input/textarea + error slot, correct `for`/`id`
-  wiring, `aria-describedby` on error.
+- **`FormField`** — the whole form kit, in one component: `text`, `email`, `tel`,
+  `url`, `textarea`, `select`, `checkbox`, `radio`. Correct `for`/`id` wiring,
+  `aria-describedby` + `aria-invalid` on error, and one disabled state.
+  - **One component, not five.** What is worth sharing is not the control — it is
+    the label wiring, the error slot, the describedby/invalid pair and the
+    disabled state. Five components re-implement that five times and drift four
+    ways. The control is the easy half.
+  - **Native elements only.** `<select>`, `<input type="checkbox">`,
+    `<input type="radio">` — never a div with ARIA. Each is focusable, announced,
+    form-associated, keyboard-operable and included in a `FormData` for free, and
+    every one of those is something a re-implementation eventually gets wrong.
+    `appearance: none` removes the platform box and nothing else.
+  - **The tick, the dot and the arrow are drawn in CSS**, on an aria-hidden
+    sibling span — `::before`/`::after` on an `<input>` are not reliably
+    supported. Not an inline SVG or a data URI: a data URI cannot carry
+    `currentColor`, so its colour would be hardcoded, and a hardcoded tick stays
+    white on a light theme's white fill. They follow `--accent-contrast` like
+    everything else on an accent fill, and the contrast matrix (§9) already
+    covers that pair.
+  - **Zero JavaScript.**
+- **A radio group is a PATTERN, not a component.** It is a `<fieldset>` with a
+  `<legend>`, and that is all it is:
+  ```astro
+  <fieldset class="field-group flex flex-col gap-sm">
+    <legend class="text-body-sm text-secondary mb-xs">Engagement</legend>
+    <FormField type="radio" name="engagement" value="project"  label="One-off project" />
+    <FormField type="radio" name="engagement" value="retainer" label="Retainer" />
+  </fieldset>
+  ```
+  The `<legend>` is what a screen reader announces before each option, and no
+  component can supply it without also owning how the options are laid out — the
+  first design that wants them in two columns forks it. `<fieldset disabled>`
+  makes the whole group inert, and §9's ships-disabled contract honours that
+  rather than demanding the attribute on every control: a contract people have to
+  work around is a contract people delete.
+- **File upload and switch are deliberately absent — build-on-demand.** Neither
+  has a native control worth restyling (`<input type="file">` needs its own
+  labelling, drag-drop and progress story; a switch is a checkbox with a different
+  promise about when it takes effect). Both are real components with real a11y
+  surface, and §4.2's rule applies: built when a project's content demands one,
+  not invented ahead of need.
 - **`Logo`** / **`ClientLogo`** — inline SVG, fills rewritten to `currentColor`
   (theme-proof), through `svgoOptimizer()`. Inconsistent viewBoxes normalized
   with height + `max-width`.

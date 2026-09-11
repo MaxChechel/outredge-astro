@@ -1191,3 +1191,123 @@ documentation in your head.**
 Tagged **v1.0.0**. No client project scaffolded.
 
 **Template frozen for CentiPack.**
+
+---
+
+## 2026-09-11 — Entry 10. Form atoms; v1.1.0
+
+Un-frozen for one scoped addition: `select`, `checkbox` and `radio`. Native
+elements, token-styled, zero JavaScript.
+
+### One component, not five
+
+The controls route through `FormField` rather than arriving as three new atoms,
+because **the part worth sharing is not the control.** It is the label wiring, the
+error slot, the `aria-describedby`/`aria-invalid` pair and the disabled state —
+and five components would re-implement that five times and drift four ways. The
+control is the easy half.
+
+Checkbox and radio invert the layout (control first, label beside it), which is
+the one structural difference, and it lives in the template rather than in a
+second component.
+
+### Native elements, and why the mark is drawn in CSS
+
+`<select>`, `<input type="checkbox">`, `<input type="radio">` — never a div with
+ARIA. Each is focusable, announced, form-associated, keyboard-operable and
+included in a `FormData` for free, and every one of those is a thing a
+re-implementation eventually gets wrong. `appearance: none` removes the platform
+box and nothing else.
+
+Two decisions inside that, both load-bearing:
+
+- **The mark is a sibling span, not a pseudo-element.** `::before`/`::after` on an
+  `<input>` are not reliably supported — it is a replaced element — so the tick
+  and the dot are drawn on an adjacent `aria-hidden` span that `:checked` reveals.
+- **Drawn in CSS, not as an inline SVG or a data URI.** A data URI cannot carry
+  `currentColor`, so its colour would have to be hardcoded — and a hardcoded tick
+  is a tick that stays white on the light theme's white fill. The mark follows
+  `--accent-contrast` like everything else on an accent fill, which means the
+  contrast matrix **already covers it**: `accent-contrast on accent` is one of the
+  8 accent pairs, at 6.01:1 light and 7.12:1 dark.
+
+That last point is the one worth remembering. The right way to build the mark was
+the way that put it under an existing check for free.
+
+### Radio groups are a pattern, documented and not componentised
+
+A `<fieldset>` with a `<legend>`. The legend is what a screen reader announces
+before each option, and no component can supply it without also owning how the
+options are laid out — the first design that wants them in two columns forks it.
+Written up in `ARCHITECTURE.md` §4.1 and demonstrated in the styleguide.
+
+**File upload and switch are explicitly out of scope**, recorded in §4.1 as
+build-on-demand with the reason: neither has a native control worth restyling, and
+both carry real a11y surface that §4.2's rule says to build when a project's
+content demands it rather than ahead of need.
+
+### The styleguide section pays for itself
+
+Every control now renders in **normal, error and disabled** — three columns of
+identical markup with one prop different, so a state that only looks right because
+it was hand-tuned has nowhere to hide. Plus a fourth panel on `theme="dark"`.
+
+That dark panel is not decoration. The tick and the dot are painted in
+`--accent-contrast`, which is white on light and near-black on dark; a control set
+rendered on only one ground is a control set whose inverse has never been looked
+at, and this system has shipped exactly that bug before. Confirmed by eye: dark
+tick on an accent fill.
+
+Putting them on the styleguide also put them under **axe, the contrast matrix and
+the dead-class check** with no extra work — which is the argument for the
+styleguide being dense rather than tidy. Dead classes went 194 → 204, all
+resolving; axe stayed at 0 violations across 6 page/width runs.
+
+### The ships-disabled contract, extended
+
+Two changes:
+
+1. **A per-type census instead of a total.** It read "8 controls"; it now reads
+   `button 1, checkbox 1, email 1, radio 3, select 1, text 2, textarea 1`. A
+   summed count hides a control type falling out of the form entirely — the
+   assertion would stay green while covering less.
+2. **`<fieldset disabled>` is honoured.** Per the HTML spec it disables every
+   control inside it, and that is the correct way to make a radio group inert. A
+   contract that only looked for the attribute on each control would
+   false-positive on correct markup, and **a contract people have to work around
+   is a contract people delete.** Model the real rule, not a convention.
+
+Failures now name the control type and its `name` attribute rather than printing a
+count.
+
+### Fault injection
+
+| injected fault | result |
+| --- | --- |
+| un-disabled the new checkbox | `CHECKBOX CONTROL "newsletter" IS ENABLED with no configured endpoint (§8)` + the tag, exit 1 |
+| un-disabled one radio in the group | `RADIO CONTROL "engagement" IS ENABLED …`, exit 1 |
+| moved the group to `<fieldset disabled>`, removed the per-control attributes | **PASS**, exit 0 — correct markup is not a false positive |
+
+The third is as important as the first two: a guard that fires on valid code is a
+guard that gets switched off.
+
+### Verified
+
+Identical from a canonical and a space-containing path:
+
+```
+  astro check             0 errors, 0 warnings, 0 hints
+  contrast matrix         38 token pairs, floor 5.05:1
+  dead classes            204 classes, all resolve
+  JS census               5 scripts, 1,280 B gzipped
+  build contracts         21 assertions
+  overflow + structure    21 page/width checks (3 pages × 7 widths)
+  axe-core                6 page/width runs, 0 violations
+
+  7 checks, 296 assertions executed        §9 PASS
+```
+
+No preview daemon left behind by either run. **JavaScript unchanged at 1,280 B
+gzipped** — three new control types, zero new bytes.
+
+**Re-frozen. Tagged v1.1.0. No client project scaffolded.**

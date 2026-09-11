@@ -81,7 +81,35 @@ const configured = Boolean(turnstileSiteKey);
           autocomplete="email"
           inputmode="email"
         />
+        <FormField
+          label="Budget range"
+          name="budget"
+          type="select"
+          placeholder="Choose a range…"
+          options={['Under £10k', '£10k – £25k', '£25k – £50k', '£50k+']}
+          disabled={true}
+        />
+
+        {/* A radio group is a <fieldset> with a <legend> — the pattern, not a
+            component (§4.1). The legend is what a screen reader announces before
+            each option, and no component can supply it without also owning how
+            the options are laid out. */}
+        <fieldset class="field-group gap-sm flex flex-col">
+          <legend class="text-body-sm text-secondary mb-xs">How would you like to work?</legend>
+          <FormField type="radio" name="engagement" value="project" label="A one-off project" disabled={true} />
+          <FormField type="radio" name="engagement" value="retainer" label="An ongoing retainer" disabled={true} />
+          <FormField type="radio" name="engagement" value="unsure" label="Not sure yet" disabled={true} />
+        </fieldset>
+
         <FormField label="What can we help with?" name="message" type="textarea" required disabled={true} />
+
+        <FormField
+          type="checkbox"
+          name="newsletter"
+          value="yes"
+          label="Send me the occasional note about how this system evolves. No more than monthly."
+          disabled={true}
+        />
 
         {configured && <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-size="flexible" />}
 

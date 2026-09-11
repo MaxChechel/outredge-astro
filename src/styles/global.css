@@ -205,6 +205,10 @@
   --spacing-nav: var(--nav-height);
   --spacing-control-sm: 2.25rem;
   --spacing-control-md: 3rem;
+  /* Checkbox and radio box. Fixed, not fluid: a tick target that grows with the
+     viewport stops matching the text beside it, and 1.125rem already clears the
+     24px minimum once its label is counted as part of the target. */
+  --spacing-toggle: 1.125rem;
   --spacing-icon: 1.5rem;
   /* The nav sizes the wordmark by WIDTH: marks arrive with wildly different
      aspect ratios, and a width cap is the only one that keeps the bar's rhythm
@@ -1120,6 +1124,106 @@
   flex: none;
 }
 
+/* --- Checkbox and radio --------------------------------------------------
+   NATIVE CONTROLS, RESTYLED — not divs with ARIA. `<input type="checkbox">` is
+   focusable, announced, form-associated, keyboard-operable and included in a
+   `FormData` for free; every one of those is a thing a re-implementation gets
+   wrong eventually, and the tick is the only part that needed replacing.
+
+   `appearance: none` removes the platform box and nothing else, so the input
+   keeps being an input.
+
+   THE MARK IS A SIBLING SPAN, NOT A PSEUDO-ELEMENT. `::before`/`::after` on an
+   `<input>` are not reliably supported — it is a replaced element — so the tick
+   and the dot are drawn on an adjacent, aria-hidden span that `:checked` reveals.
+   Drawn in CSS rather than as an inline SVG or a data URI: a data URI cannot
+   carry `currentColor`, so its colour would have to be hardcoded, and a hardcoded
+   tick is a tick that stays white on the light theme's white fill. This follows
+   --accent-contrast like everything else on an accent fill does. */
+@layer components {
+  .control-toggle-wrap {
+    position: relative;
+    display: inline-flex;
+    flex: none;
+  }
+
+  .control-toggle {
+    appearance: none;
+    width: var(--spacing-toggle);
+    height: var(--spacing-toggle);
+    margin: 0;
+    border: var(--border-width) solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg-surface);
+    transition:
+      background-color var(--transition-duration-spring-soft) var(--ease-spring-soft),
+      border-color var(--transition-duration-spring-soft) var(--ease-spring-soft);
+  }
+
+  /* The one visual difference that carries meaning: a round control is
+     single-choice, a square one is not. Users read that before they read the
+     label, so it is not decoration. */
+  .control-toggle[type='radio'] {
+    border-radius: var(--radius-full);
+  }
+
+  .control-toggle:checked {
+    background-color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  @media (hover: hover) {
+    .control-toggle:not(:disabled):hover {
+      border-color: var(--accent);
+    }
+  }
+
+  .control-toggle:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .control-toggle[aria-invalid='true'] {
+    border-color: var(--accent);
+  }
+
+  .control-mark {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+  }
+
+  /* Tick: two borders of a box, rotated. */
+  .control-toggle[type='checkbox']:checked + .control-mark::after {
+    content: '';
+    width: 0.3rem;
+    height: 0.55rem;
+    border-right: 2px solid var(--accent-contrast);
+    border-bottom: 2px solid var(--accent-contrast);
+    transform: translateY(-1px) rotate(45deg);
+  }
+
+  /* Dot. */
+  .control-toggle[type='radio']:checked + .control-mark::after {
+    content: '';
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: var(--radius-full);
+    background-color: var(--accent-contrast);
+  }
+
+  /* A radio group is a <fieldset>; its <legend> is the group's label (§4.1).
+     No border, because the grouping is semantic rather than drawn. */
+  .field-group {
+    min-inline-size: 0;
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }
+}
+
 /* --- Select chevron ------------------------------------------------------
    Drawn in CSS: no icon asset, no inline SVG, and it inherits the text colour
    under any theme. */
@@ -1134,6 +1238,13 @@
     border-bottom: var(--border-width) solid currentcolor;
     transform: translateY(-70%) rotate(45deg);
     pointer-events: none;
+  }
+
+  /* The arrow picks up the accent when the control does, so the whole control
+     responds as one thing rather than the border moving on its own. */
+  .select-wrap:has(select:not(:disabled):hover) .select-icon,
+  .select-wrap:has(select:focus-visible) .select-icon {
+    color: var(--accent);
   }
 
   /* A select showing its placeholder reads as a placeholder. */

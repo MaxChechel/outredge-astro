@@ -125,6 +125,23 @@ const TYPE_ROLES = [
   { token: '--text-eyebrow', style: 'text-eyebrow', note: '12 → 13px', sample: 'Eyebrow label' },
 ];
 
+/* Every form control, in every state worth seeing. Declared rather than written
+   out three times: the point of the grid is that the three columns are the SAME
+   markup with one prop different, so a state that only looks right because it was
+   hand-tuned has nowhere to hide. */
+const FORM_STATES = [
+  { key: 'normal', label: 'normal', error: undefined, disabled: false },
+  {
+    key: 'error',
+    label: 'error — aria-invalid + aria-describedby',
+    error: 'That does not look right.',
+    disabled: false,
+  },
+  { key: 'disabled', label: 'disabled — how every form ships (§8)', error: undefined, disabled: true },
+] as const;
+
+const BUDGETS = ['Under £10k', '£10k – £25k', '£25k – £50k', '£50k+'];
+
 const SPACING_STEPS = ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl'];
 const SECTION_STEPS = ['section-sm', 'section-md', 'section-lg', 'nav'];
 
@@ -611,7 +628,7 @@ const INDEX = [
       <SectionHeader
         eyebrow="07 · atoms"
         heading="Atoms"
-        lede="The indivisible primitives every project ships. An atom may be non-visual: JsonLd emits structured data and renders nothing, and is still an atom — indivisible and context-free is the test, not whether it paints."
+        lede="The indivisible primitives every project ships. An atom may be non-visual: JsonLd emits structured data and renders nothing, and is still an atom — indivisible and context-free is the test, not whether it paints. Every form control lives here too, in every state, which puts them under axe, the contrast matrix and the dead-class check for free."
         split
       />
 
@@ -654,6 +671,163 @@ const INDEX = [
             type="email"
             error="That does not look like an email address."
           />
+        </div>
+      </div>
+
+      <!-- ============================================================
+           Form controls — every control, every state
+           ============================================================ -->
+      <div class="gap-md flex flex-col">
+        <h3 class="text-h5 text-primary">Form controls</h3>
+        <p class="text-body-sm text-secondary measure">
+          Five control types, one component. What is shared is not the control — it is the label wiring, the error
+          slot, the <span class="sg-mono">aria-invalid</span>/<span class="sg-mono">aria-describedby</span> pair
+          and the disabled state. Five components would re-implement that five times and drift four ways.
+        </p>
+        <p class="sg-meta measure">
+          All native: <span class="sg-mono">&lt;select&gt;</span>,
+          <span class="sg-mono">&lt;input type="checkbox"&gt;</span>,
+          <span class="sg-mono">&lt;input type="radio"&gt;</span>. `appearance: none` removes the platform box and
+          nothing else, so each one stays focusable, announced, form-associated and keyboard-operable for free. The
+          tick, the dot and the arrow are drawn in CSS and follow
+          <span class="sg-mono">--accent-contrast</span>, which a hardcoded SVG could not.
+          <strong class="text-primary">Zero JavaScript.</strong>
+        </p>
+
+        <div class="gap-md grid lg:grid-cols-3">
+          {
+            FORM_STATES.map((state) => (
+              <div class="bg-surface border-line p-md gap-md flex flex-col rounded-md border">
+                <p class="sg-meta">{state.label}</p>
+
+                <FormField
+                  label="Full name"
+                  name={`sg-${state.key}-name`}
+                  placeholder="Ada Lovelace"
+                  required
+                  error={state.error}
+                  disabled={state.disabled}
+                />
+
+                <FormField
+                  label="Budget range"
+                  name={`sg-${state.key}-budget`}
+                  type="select"
+                  placeholder="Choose a range…"
+                  options={BUDGETS}
+                  error={state.error}
+                  disabled={state.disabled}
+                />
+
+                <FormField
+                  label="Anything else?"
+                  name={`sg-${state.key}-message`}
+                  type="textarea"
+                  rows={2}
+                  error={state.error}
+                  disabled={state.disabled}
+                />
+
+                <fieldset class="field-group gap-sm flex flex-col">
+                  <legend class="text-body-sm text-secondary mb-xs">How would you like to work?</legend>
+                  <FormField
+                    type="radio"
+                    name={`sg-${state.key}-engagement`}
+                    value="project"
+                    label="A one-off project"
+                    checked
+                    disabled={state.disabled}
+                  />
+                  <FormField
+                    type="radio"
+                    name={`sg-${state.key}-engagement`}
+                    value="retainer"
+                    label="An ongoing retainer"
+                    error={state.error}
+                    disabled={state.disabled}
+                  />
+                </fieldset>
+
+                <div class="gap-sm flex flex-col">
+                  <FormField
+                    type="checkbox"
+                    name={`sg-${state.key}-terms`}
+                    value="yes"
+                    label="I have read the terms"
+                    checked
+                    disabled={state.disabled}
+                  />
+                  <FormField
+                    type="checkbox"
+                    name={`sg-${state.key}-news`}
+                    value="yes"
+                    label="Send me the occasional note"
+                    error={state.error}
+                    disabled={state.disabled}
+                  />
+                </div>
+              </div>
+            ))
+          }
+        </div>
+
+        <!-- The tick and the dot are painted in --accent-contrast, which is white
+             on light and near-black on dark. A control set that is only ever
+             rendered on one ground is a control set whose inverse has never been
+             looked at — and this system has shipped exactly that bug before. -->
+        <div data-theme="dark" class="bg-base border-line p-md gap-md flex flex-col rounded-md border">
+          <p class="sg-meta">the same controls on theme="dark" — accent and accent-contrast both flip</p>
+          <div class="gap-md grid md:grid-cols-2">
+            <div class="gap-md flex flex-col">
+              <FormField
+                label="Budget range"
+                name="sg-dark-budget"
+                type="select"
+                placeholder="Choose a range…"
+                options={BUDGETS}
+              />
+              <fieldset class="field-group gap-sm flex flex-col">
+                <legend class="text-body-sm text-secondary mb-xs">How would you like to work?</legend>
+                <FormField type="radio" name="sg-dark-engagement" value="project" label="A one-off project" checked />
+                <FormField type="radio" name="sg-dark-engagement" value="retainer" label="An ongoing retainer" />
+              </fieldset>
+            </div>
+            <div class="gap-md flex flex-col">
+              <FormField label="Full name" name="sg-dark-name" placeholder="Ada Lovelace" />
+              <div class="gap-sm flex flex-col">
+                <FormField type="checkbox" name="sg-dark-terms" value="yes" label="I have read the terms" checked />
+                <FormField
+                  type="checkbox"
+                  name="sg-dark-news"
+                  value="yes"
+                  label="Send me the occasional note"
+                  error="Errors read on this ground too."
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+          <h4 class="text-h6 text-primary">A radio group is a pattern, not a component</h4>
+          <p class="text-body-sm text-secondary measure">
+            The groups above are a <span class="sg-mono">&lt;fieldset&gt;</span> with a
+            <span class="sg-mono">&lt;legend&gt;</span> — which is what a screen reader announces before each
+            option, and what no component can supply without also owning how the options are laid out. The first
+            design that wants them in two columns would fork it.
+          </p>
+          <pre class="sg-code" tabindex="0"><code>{`<fieldset class="field-group flex flex-col gap-sm">
+  <legend class="text-body-sm text-secondary mb-xs">Engagement</legend>
+  <FormField type="radio" name="engagement" value="project"  label="One-off project" />
+  <FormField type="radio" name="engagement" value="retainer" label="Retainer" />
+</fieldset>`}</code></pre>
+          <p class="sg-meta measure">
+            <span class="sg-mono">&lt;fieldset disabled&gt;</span> makes the whole group inert, and the
+            ships-disabled contract in <span class="sg-mono">npm run verify</span> honours that rather than
+            demanding the attribute on every control — a contract people have to work around is a contract people
+            delete. <strong class="text-primary">File upload and switch are deliberately absent:</strong>
+            build-on-demand (§4.1).
+          </p>
         </div>
       </div>
 

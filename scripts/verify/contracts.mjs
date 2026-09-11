@@ -36,6 +36,11 @@ const read = (file) => {
  * what a visitor receives. `data-contact-ready` present means a Turnstile site key
  * exists, so the module is allowed to enable the form; absent means every control
  * must carry `disabled` and the module must refuse.
+ *
+ * EVERY CONTROL TYPE, and the breakdown is reported rather than summed, so the
+ * next person can see at a glance that the checkbox and the radios are actually
+ * in the population. A contract that says "8 controls" hides a control type
+ * dropping out of the form entirely.
  */
 /**
  * Is this tag carrying the `disabled` ATTRIBUTE?
@@ -70,19 +75,50 @@ function formShipsDisabled() {
 
       const ready = /data-contact-ready/.test(form);
       const submits = [...form.matchAll(/<(button|input)\b[^>]*type=["']submit["'][^>]*>/g)].map((m) => m[0]);
+
+      /* `<fieldset disabled>` disables every control inside it, per the HTML
+         spec, and that is the correct way to make a radio group inert — so a
+         contract that only looked for the attribute on each control would
+         false-positive on correct markup. Model the real rule, not a convention:
+         collect the character ranges covered by a disabled fieldset, and treat
+         anything inside one as disabled. A contract people have to work around
+         is a contract people delete. */
+      const disabledRanges = [];
+      for (const m of form.matchAll(/<fieldset\b[^>]*>/g)) {
+        if (!hasDisabledAttribute(m[0])) continue;
+        const close = form.indexOf('</fieldset>', m.index);
+        disabledRanges.push([m.index, close === -1 ? form.length : close]);
+      }
+      const insideDisabledFieldset = (at) => disabledRanges.some(([a, b]) => at > a && at < b);
+
       const controls = [...form.matchAll(/<(input|textarea|select|button)\b[^>]*>/g)]
-        .map((m) => m[0])
-        // The honeypot is deliberately not disabled: a bot must be able to fill it.
-        .filter((c) => !/company_website/.test(c))
-        .filter((c) => !/type=["']hidden["']/.test(c));
+        .map((m) => ({ tag: m[0], element: m[1], at: m.index }))
+        // The honeypot is deliberately not disabled: a bot must be able to fill
+        // it, which is the entire mechanism.
+        .filter((c) => !/company_website/.test(c.tag))
+        // Nothing types into a hidden input.
+        .filter((c) => !/type=["']hidden["']/.test(c.tag));
 
       if (ready) {
         notes.push(`${file}: contact form is configured (data-contact-ready) — enable path allowed`);
         continue;
       }
 
+      /* Report the population by type. "8 controls" hides a control type falling
+         out of the form; "checkbox 1, radio 3, select 1" does not. */
+      const kindOf = (c) => {
+        const type = /type=["']([a-z]+)["']/.exec(c.tag)?.[1];
+        return c.element === 'input' ? (type ?? 'text') : c.element;
+      };
+      const breakdown = {};
+      for (const c of controls) breakdown[kindOf(c)] = (breakdown[kindOf(c)] ?? 0) + 1;
+      const census = Object.entries(breakdown)
+        .sort()
+        .map(([k, n]) => `${k} ${n}`)
+        .join(', ');
+
       const enabledSubmits = submits.filter((c) => !hasDisabledAttribute(c));
-      const enabledControls = controls.filter((c) => !hasDisabledAttribute(c));
+      const enabled = controls.filter((c) => !hasDisabledAttribute(c.tag) && !insideDisabledFieldset(c.at));
 
       if (submits.length === 0) {
         failures++;
@@ -91,15 +127,21 @@ function formShipsDisabled() {
         failures++;
         notes.push(
           `${file}: SUBMIT CONTROL IS ENABLED on a build with no configured endpoint (§8). ` +
-            `An unverified endpoint must not be reachable.`,
+            'An unverified endpoint must not be reachable.',
         );
         notes.push(`    ${enabledSubmits[0].slice(0, 140)}`);
-      } else if (enabledControls.length) {
+      } else if (enabled.length) {
         failures++;
-        notes.push(`${file}: ${enabledControls.length} form control(s) enabled with no configured endpoint (§8)`);
-        notes.push(`    ${enabledControls[0].slice(0, 140)}`);
+        for (const c of enabled) {
+          notes.push(
+            `${file}: ${kindOf(c).toUpperCase()} CONTROL "${/name=["']([^"']*)["']/.exec(c.tag)?.[1] ?? '?'}" ` +
+              'IS ENABLED with no configured endpoint (§8). A control that accepts input invites someone ' +
+              'to fill this form and lose it.',
+          );
+          notes.push(`    ${c.tag.slice(0, 140)}`);
+        }
       } else {
-        notes.push(`${file}: contact form ships disabled — ${controls.length} controls, no endpoint configured`);
+        notes.push(`${file}: ships disabled — ${controls.length} controls (${census}), no endpoint configured`);
       }
     }
   }
