@@ -1,5 +1,6 @@
 // @ts-check
 import { defineConfig, svgoOptimizer } from 'astro/config';
+import mdx from '@astrojs/mdx';
 import tailwindcss from '@tailwindcss/vite';
 
 /**
@@ -50,7 +51,10 @@ export default defineConfig({
   // src/lib/urls.ts normalizes the ".html" back out of canonical URLs.
   build: { format: 'file' },
 
-  integrations: [styleguideRoute()],
+  // MDX carries the content vocabulary in §4.5 — <Figure>, <Clip>, <Lede>. The
+  // approved list is closed per project: a new component appearing in a body
+  // requires a ruling, and src/components/mdx/index.ts is where it becomes real.
+  integrations: [mdx(), styleguideRoute()],
 
   vite: {
     plugins: [tailwindcss()],

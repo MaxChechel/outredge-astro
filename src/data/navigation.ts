@@ -43,12 +43,12 @@ export const navigation: readonly NavItem[] = [
 export const footerLinks: readonly NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/styleguide', label: 'Styleguide' },
-  { href: '/#about', label: 'About' },
+  { href: '/contact', label: 'Contact' },
 ];
 
 export const site = {
   /** PROJECT: replace. */
   name: 'outredge-system',
   description: 'The Outredge dev system for Astro marketing sites.',
-  contactHref: '/#contact',
+  contactHref: '/contact',
 } as const;

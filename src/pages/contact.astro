@@ -1,0 +1,109 @@
+---
+/**
+ * Contact — the worked example of the §8 form pattern.
+ *
+ * THE FORM SHIPS VISIBLY DISABLED. Every control carries `disabled` in the
+ * markup, and only src/scripts/contact.ts re-enables it in the browser. That is
+ * not belt-and-braces, it is the rule: an unconfigured or undeployed endpoint
+ * silently swallowing a real enquiry is the single most expensive failure a
+ * marketing site has, and it is the DEFAULT state of every form that has not been
+ * verified end to end. Disabled-by-default inverts it.
+ *
+ * Turnstile is loaded on this page and nowhere else, and only once a site key
+ * exists in the environment. No key → no widget, no third-party request, no
+ * `data-contact-ready`, so the module leaves the controls disabled — and the
+ * notice below says so out loud rather than leaving a dead button.
+ */
+import BaseLayout from '../components/shells/BaseLayout.astro';
+import Section from '../components/Section.astro';
+import SectionHeader from '../components/blocks/SectionHeader.astro';
+import FormField from '../components/atoms/FormField.astro';
+import Button from '../components/atoms/Button.astro';
+import TextLink from '../components/atoms/TextLink.astro';
+
+/** PROJECT: set PUBLIC_TURNSTILE_SITE_KEY in the environment. Public by design —
+ *  the secret half lives in the Pages Function's env and never in this repo. */
+const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY as string | undefined;
+const configured = Boolean(turnstileSiteKey);
+---
+
+<BaseLayout title="Contact" description="Send an enquiry.">
+  <Section spaceTop="nav" spaceBottom="lg" width="narrow">
+    <div class="gap-xl flex flex-col">
+      <SectionHeader
+        eyebrow="Contact"
+        heading="Send an enquiry"
+        headingLevel="h1"
+        size="h1"
+        lede="The form below is the system's reference implementation: honeypot, time floor, server-verified Turnstile, and a single swappable delivery hop behind it."
+      />
+
+      {
+        !configured && (
+          <div class="border-line-strong bg-subtle p-md gap-xs flex flex-col rounded-md border">
+            <p class="text-h6 text-primary">This form is not live yet.</p>
+            <p class="text-body-sm text-secondary">
+              <code>PUBLIC_TURNSTILE_SITE_KEY</code> is unset, so no Turnstile widget is loaded and the controls
+              below stay disabled. Configure the endpoint, verify a submission end to end, and it enables itself.
+            </p>
+          </div>
+        )
+      }
+
+      <form
+        method="POST"
+        action="/api/contact"
+        data-contact-form
+        data-contact-ready={configured ? '' : undefined}
+        data-form-disabled={configured ? undefined : ''}
+        class="gap-md flex flex-col"
+      >
+        <!-- Honeypot. Off-screen rather than display:none — some bots skip
+             hidden fields, and none of them are looking at the viewport.
+             aria-hidden + tabindex="-1" keep it away from real users entirely. -->
+        <div class="sr-only" aria-hidden="true">
+          <label for="company_website">Leave this field empty</label>
+          <input id="company_website" type="text" name="company_website" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <!-- Stamped in the browser by src/scripts/contact.ts. A build-time value
+             would be baked into the HTML and cached. -->
+        <input type="hidden" name="started_at" value="0" />
+
+        <FormField label="Name" name="name" required disabled={true} autocomplete="name" />
+        <FormField label="Company" name="company" disabled={true} autocomplete="organization" />
+        <FormField
+          label="Email"
+          name="email"
+          type="email"
+          required
+          disabled={true}
+          autocomplete="email"
+          inputmode="email"
+        />
+        <FormField label="What can we help with?" name="message" type="textarea" required disabled={true} />
+
+        {configured && <div class="cf-turnstile" data-sitekey={turnstileSiteKey} data-size="flexible" />}
+
+        <div class="gap-sm flex flex-wrap items-center">
+          <Button type="submit" variant="primary" disabled>Send enquiry</Button>
+          <p class="text-caption text-tertiary">
+            Or email us directly — see the <TextLink href="/">footer</TextLink>.
+          </p>
+        </div>
+      </form>
+    </div>
+  </Section>
+</BaseLayout>
+
+<script>
+  import '../scripts/contact';
+</script>
+
+{
+  /* Turnstile, on this page only and only when configured. `defer` rather than
+     `async`: the widget must not race the form's own module. */
+  configured && (
+    <script is:inline defer src="https://challenges.cloudflare.com/turnstile/v0/api.js" />
+  )
+}

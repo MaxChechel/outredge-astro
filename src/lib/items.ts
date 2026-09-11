@@ -1,4 +1,4 @@
-import { getCollection, type CollectionEntry } from 'astro:content';
+import { getCollection, getEntry, render, type CollectionEntry } from 'astro:content';
 import { getImage } from 'astro:assets';
 
 /**
@@ -66,4 +66,24 @@ export async function getItems(): Promise<ItemView[]> {
   const entries = await getCollection('items', (entry: CollectionEntry<'items'>) => !entry.data.draft);
   const views = await Promise.all(entries.map(toView));
   return views.sort((a, b) => a.order - b.order);
+}
+
+/**
+ * One item's rendered body, for a page that shows one.
+ *
+ * The adapter stays the only file that touches the source type — a PAGE may call
+ * this, a COMPONENT may not, which is the same boundary `getItems()` draws. The
+ * returned `Content` is rendered with the §4.5 vocabulary:
+ *
+ *     import * as vocabulary from '../components/mdx';
+ *     <Content components={vocabulary} />
+ *
+ * Passing that map is what closes the approved list: a body can only reach a
+ * component someone deliberately put in `src/components/mdx/index.ts`.
+ */
+export async function getItemBody(slug: string) {
+  const entry = await getEntry('items', slug);
+  if (!entry) throw new Error(`getItemBody: no item "${slug}"`);
+  const { Content } = await render(entry);
+  return { Content, title: entry.data.title };
 }

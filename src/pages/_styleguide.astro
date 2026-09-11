@@ -27,7 +27,8 @@ import Faq from '../components/blocks/Faq.astro';
 import CtaBanner from '../components/blocks/CtaBanner.astro';
 import LogoStrip from '../components/blocks/LogoStrip.astro';
 import ItemCard from '../components/blocks/ItemCard.astro';
-import { getItems } from '../lib/items';
+import { getItems, getItemBody } from '../lib/items';
+import * as vocabulary from '../components/mdx';
 import {
   parseThemeScopes,
   textMatrix,
@@ -150,6 +151,9 @@ const demoLogos = [
 ];
 
 const items = await getItems();
+/* A real MDX body, rendered with the §4.5 vocabulary, so the components in
+   src/components/mdx/ are exercised by the harness rather than only shipped. */
+const { Content: ItemBody } = await getItemBody('item-one');
 
 const INDEX = [
   ['01', 'color', 'Colour tokens'],
@@ -832,11 +836,26 @@ const INDEX = [
       <SectionHeader
         eyebrow="11 · prose"
         heading="Prose"
-        lede="One scoped style of our own, not the Tailwind typography plugin — which ships its own type scale, spacing scale and colour opinions, all of which would have to be overridden token by token."
+        lede="One scoped style of our own, not the Tailwind typography plugin — which ships its own type scale, spacing scale and colour opinions, all of which would have to be overridden token by token. MDX bodies render inside it."
       />
 
       <div class="prose">
-        <h2>A long-form body</h2>
+        <ItemBody components={vocabulary} />
+      </div>
+
+      <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+        <h3 class="text-h6 text-primary">That was a real MDX body</h3>
+        <p class="text-body-sm text-secondary measure">
+          Rendered from <span class="sg-mono">src/content/items/item-one.mdx</span> through the adapter, with
+          <span class="sg-mono">&lt;Content components=&#123;vocabulary&#125; /&gt;</span>. Passing that map is what
+          closes the approved list: a body can only reach a component someone deliberately put in
+          <span class="sg-mono">src/components/mdx/index.ts</span>. The <span class="sg-mono">&lt;Lede&gt;</span>
+          and <span class="sg-mono">&lt;Figure&gt;</span> above came from it.
+        </p>
+      </div>
+
+      <div class="prose">
+        <h2>The rest of the prose vocabulary</h2>
         <p>
           Everything inside <code>.prose</code> comes from the same tokens as the rest of the system: paragraph
           spacing from the spacing scale, the reading measure from <code>--container-measure</code>, links in the

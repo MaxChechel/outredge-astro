@@ -1,0 +1,28 @@
+---
+title: Collections from the first commit
+summary: The schema is written as the CMS schema, so the loader swap is one line and nothing downstream moves.
+cover: ../../assets/items/item-one.webp
+coverAlt: Placeholder cover — concentric arcs on a pale ground
+order: 1
+tags:
+  - content layer
+  - zod
+---
+
+<Lede>
+  Repeating content lives in a collection from day one — not in a typed module
+  that will become one later, because that migration never happens for free.
+</Lede>
+
+The adapter in `src/lib/items.ts` turns an entry into a view model, and the card
+that renders this item has never seen a `CollectionEntry`. That is what makes
+swapping `glob()` for a CMS loader a one-file change rather than a refactor.
+
+<Figure
+  src="item-three.webp"
+  alt="Placeholder figure — concentric arcs on a grey ground"
+  caption="A Figure from the MDX vocabulary. The approved list is closed per project."
+/>
+
+The vocabulary is derived by **counting what real content contains**, never
+invented ahead of need. A new component in a body requires a ruling.

@@ -20,6 +20,11 @@ interface Props {
   type?: 'text' | 'email' | 'tel' | 'url' | 'textarea' | 'select';
   placeholder?: string;
   required?: boolean;
+  /**
+   * Ships disabled, re-enabled in the browser by the page's module. §8's rule:
+   * a form is inert until its endpoint has been verified end to end.
+   */
+  disabled?: boolean;
   autocomplete?: string;
   inputmode?: 'text' | 'email' | 'tel' | 'url';
   rows?: number;
@@ -36,6 +41,7 @@ const {
   type = 'text',
   placeholder,
   required = false,
+  disabled = false,
   autocomplete,
   inputmode,
   rows = 5,
@@ -52,6 +58,8 @@ const control = [
   'placeholder:text-tertiary',
   'transition-colors duration-spring-soft ease-spring-soft',
   'hover:border-accent focus-visible:border-accent',
+  // A disabled control must read as disabled, not merely behave as one.
+  'disabled:cursor-not-allowed disabled:opacity-50',
   // The invalid state is announced, so it must also be seen without colour
   // alone — the border thickens as well as recolouring.
   'aria-[invalid=true]:border-accent',
@@ -72,6 +80,7 @@ const control = [
         rows={rows}
         placeholder={placeholder}
         required={required}
+        disabled={disabled}
         aria-invalid={error ? 'true' : undefined}
         aria-describedby={error ? errorId : undefined}
         class:list={[control, 'resize-y']}
@@ -82,6 +91,7 @@ const control = [
           id={id}
           name={name}
           required={required}
+          disabled={disabled}
           aria-invalid={error ? 'true' : undefined}
           aria-describedby={error ? errorId : undefined}
           class:list={[control, 'appearance-none pr-xl']}
@@ -100,6 +110,7 @@ const control = [
         name={name}
         placeholder={placeholder}
         required={required}
+        disabled={disabled}
         autocomplete={autocomplete}
         inputmode={inputmode}
         aria-invalid={error ? 'true' : undefined}

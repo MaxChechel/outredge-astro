@@ -451,3 +451,128 @@ ratio does not break the nav rhythm.
 0 failures; axe 4 page/width runs, 0 violations. No bare size utility leaked back
 into the build (checked `text-xs` through `text-4xl`), and no Tailwind utility
 shadows any type-style class.
+
+---
+
+## 2026-09-11 — Entry 5. Phase 2: infrastructure
+
+### Provenance
+
+| file | provenance | note |
+| --- | --- | --- |
+| `scripts/verify/lib/cdp.mjs` | genericized | Same raw-CDP driver. Chrome is now discovered across macOS/Linux paths with a `CHROME=` override and a loud failure, rather than one hardcoded macOS path. |
+| `scripts/verify/lib/report.mjs` | new | The §9 counting contract, in one place. |
+| `scripts/verify/lib/contrast.mjs` | new (Phase 1) | Shared by the styleguide and the check below. |
+| `scripts/verify/sweep.mjs` | genericized | Same probe, plus the `checkVisibility()` filter from Entry 3 and a lazy-image force. |
+| `scripts/verify/axe.mjs` | genericized | Same tags and widths; `axe-core` is now a devDependency. |
+| `scripts/verify/contrast.mjs` | new | Amendment 6. |
+| `scripts/verify/js-census.mjs` | new | §6's census, run by machine rather than by hand. |
+| `scripts/verify/run.mjs` | new | The orchestrator behind `npm run verify`. |
+| `scripts/subset-fonts.py`, `grab-posters.py`, `stage-videos.py` | genericized | Same techniques; every Webflow-export path and rename table replaced with an empty, commented `PROJECT:` table that no-ops until filled. |
+| `public/_headers` | genericized | Same policy. The CSP comment now explains why `'unsafe-inline'` is not a nonce and what mitigates it. |
+| `public/_redirects` | new | Ships commented-out. An empty redirects file is correct for a new site. |
+| `functions/api/contact.ts` | genericized | Rewritten around the `sendLead()` boundary; see below. |
+| `src/scripts/contact.ts` | genericized | Plus the ready-gate and a bfcache re-stamp. |
+| `src/pages/contact.astro` | new | The client half of the pattern. |
+| `README.md` | new | Including the numbered new-client checklist. |
+
+### `npm run verify` — the §9 pass, in one command
+
+Builds with the styleguide route on, serves it, and runs five checks against the
+real output. **71 assertions on the current tree, all passing.**
+
+| check | assertions |
+| --- | --- |
+| `astro check` | 1 type-check run — 0 errors, 0 warnings, 0 hints |
+| contrast matrix | 38 token pairs — 18 text×bg (floor 5.05:1), 8 accent (5.16), 12 line (3.87) |
+| JS census | 5 scripts found in dist, every one named and inside budget |
+| overflow + structure | 21 page/width checks (3 pages × 7 widths) |
+| axe-core | 6 page/width runs across 6 tag sets |
+
+**The contrast check reads `dist`, not source, and the distinction is the whole
+value.** The build is where a token can silently disappear — this system has
+already lost one between source and dist (Lightning CSS deleting `linear()` from
+`@theme`), and a check that read `global.css` would have reported a clean pass
+over a stylesheet nobody shipped. The styleguide and the check share one module,
+so if they ever disagree that is a build-pipeline bug rather than two opinions.
+
+**The JS census makes "each byte justified" executable.** Every script in `dist`
+must match a declared entry carrying a signature, a reason, and a gzipped budget.
+An undeclared script fails the run; so does one that outgrew its budget. That is
+what stops a 350-byte module becoming a 40 KB one over six commits with nobody
+noticing. It counts inline modules as well as `.js` files — Astro inlines small
+scripts, so a census that counted only files would report zero while shipping
+code. `application/ld+json` is excluded by type: data, not script.
+
+### The harness was fault-injected before being trusted
+
+A harness that has never failed is a harness nobody has tested, and §9 exists
+because this system once shipped a green result from a broken one. So:
+
+- **a sub-AA token** (dark `--text-tertiary` moved one ramp step) → contrast check
+  fails and names it: `dark --text-tertiary on --bg-surface = 4.04:1 (needs 4.5:1)
+  — #8f9499 on #313539`. Exit 1.
+- **an undeclared inline script** → census fails with the bytes and the rule:
+  *"Every byte of JavaScript is a ruling (§6). Declare it in EXPECTED with a
+  reason, or delete it."* Exit 1.
+- **a check that executes nothing** → reports `EMPTY`, and `passed()` returns
+  false. A pass with zero reported checks is a failure.
+- Full runner exits 1 on any of the above and 0 on a clean tree, so CI can use it.
+
+### Decisions and deviations
+
+**`axe-core` is a devDependency, departing from the reference**, which kept it out
+of `package.json` as "a one-off audit tool, not part of the build". §9 runs it
+every phase, so it is not one-off — and a harness whose a11y check needs a manual
+`npm pack && tar xzf` first is a check that gets skipped exactly when it matters.
+devDependencies do not ship.
+
+**`sendLead()` is a real boundary, not a comment.** Everything above it in
+`functions/api/contact.ts` is validation; everything below is delivery, and it
+takes a `Lead` — a plain object — rather than a `FormData`, for the same reason
+the content layer has an adapter: the caller should not have to know the
+destination's field names. Resend is Path A, the CRM seam is Path B, both are a
+single `fetch`, and swapping touches neither the form nor the page. With no
+provider configured it **refuses loudly** rather than returning success.
+
+**`@astrojs/mdx` was missing and is now wired.** §1 and §4.5 both require MDX, the
+vocabulary components existed, and nothing could render them — the integration was
+simply absent from Phase 1's scaffold. `item-one` is now `.mdx` and its body is
+rendered on the styleguide through `getItemBody()` + `<Content components={vocabulary} />`,
+so `<Lede>` and `<Figure>` are exercised by the harness instead of merely shipped.
+Passing that map is also what closes the approved list: a body can only reach a
+component someone deliberately put in `src/components/mdx/index.ts`.
+
+**`getItemBody()` lives in the adapter, and pages may call it; components may
+not.** Same boundary `getItems()` draws — the adapter stays the only file that
+touches `CollectionEntry`.
+
+### One bug found by looking at the rendered page
+
+**The contact form enabled itself on an unconfigured build.** `contact.ts` lifted
+`disabled` unconditionally, so the page rendered "This form is not live yet"
+directly above a working-looking submit button — the two halves disagreeing, with
+the misleading half being the interactive one. The module now gates on
+`data-contact-ready`, which the page sets only when a Turnstile site key exists.
+No key → no widget, no third-party request, no enable. Caught by screenshotting
+the page, not by any check; worth recording because it is exactly the failure the
+ships-disabled rule exists to prevent, reintroduced by the code meant to implement
+it.
+
+### Measured
+
+- **JavaScript: 1,280 B gzipped across 4 scripts, 0 `.js` files in `dist`.**
+  Nav disclosure 347 B on each of three pages, contact enable 227 B on one. Clip
+  is declared and on no page.
+- Pages: home, contact, styleguide. `_headers` and `_redirects` ship.
+- Production build still emits no styleguide route.
+
+### Open questions
+
+8. **Lighthouse is not automated.** §9 requires mobile Lighthouse behind real host
+   config with the numbers recorded, and `npm run verify` does not run it — it
+   needs a real host, and a local number would be a number nobody should trust.
+   Phase 3 runs it by hand and records it. Say if you want it wired into `verify`
+   against `wrangler pages dev` instead.
+
+**Phase 2 complete. Stopping for review.**

@@ -1,0 +1,33 @@
+# Cloudflare Pages redirects. Evaluated top to bottom; first match wins.
+#
+# Pages serves `build.format: 'file'` output at extensionless URLs natively, so
+# /work resolves to work.html with no rule here. What this file is for is the
+# URLs that existed BEFORE this build: §8's rule is that old URLs 301, never 404.
+#
+# PROJECT: replace the examples below with the real old surface. The way to
+# produce that list is to export every indexed URL from Search Console and the
+# old CMS, not to guess — a 404 on an indexed URL is lost ranking, and the only
+# way to know which ones exist is to look.
+#
+# Every line here is commented out. An empty _redirects file is correct for a new
+# site; a file full of redirects to pages that do not exist is not.
+
+# --- Pages that moved ------------------------------------------------------
+# /about                 /company                301
+# /old-blog/:slug        /writing/:slug          301
+
+# --- Trailing-slash normalisation ------------------------------------------
+# `trailingSlash: 'never'` in astro.config.mjs, so a slashed URL should 301
+# rather than serve a duplicate.
+# /work/                 /work                   301
+# /contact/              /contact                301
+
+# --- .html suffix → canonical extensionless --------------------------------
+# For anything linked or bookmarked with the extension.
+# /index.html            /                       301
+# /work.html             /work                   301
+
+# --- Retired sections ------------------------------------------------------
+# Point at the nearest useful page, never at the home page by default: a 301 to
+# / tells a crawler the content is gone and tells a visitor nothing.
+# /services/legacy-thing /services               301
