@@ -9,10 +9,11 @@
 // Each contract states the rule, what would break it, and how it is checked, so a
 // failure here reads as a design violation rather than as a broken test.
 
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { result, line, passed } from './lib/report.mjs';
+import { isMain } from './lib/main.mjs';
 
 const DIST = process.env.DIST ?? 'dist';
 
@@ -141,8 +142,63 @@ function productionOmitsStyleguide() {
   return { checks: 1, failures: 0, notes };
 }
 
+/**
+ * §4.2 — `as` IS RESERVED FOR SECTION, AS A NAME.
+ *
+ * A leaf component whose `Props` declares a key called `as` can have its entire
+ * `Props` type silently discarded — every prop on it stops being checked, with no
+ * error anywhere. `VisuallyHidden` shipped that way: `<VisuallyHidden as={42}
+ * nonsense="x">` raised nothing at all.
+ *
+ * The trigger is narrow (see §4.2 for the exact mechanism) and depends on an
+ * unrelated detail of the file, which is precisely why the rule is about the NAME
+ * rather than about the circumstances: a rule you have to re-derive per file is a
+ * rule that gets it wrong once.
+ *
+ * A static check rather than a type probe, because the failure is the ABSENCE of
+ * type errors — there is nothing for `astro check` to report. Reading the source
+ * for the name is the only reliable detector.
+ */
+function asPropReservedForSection() {
+  const notes = [];
+  let checks = 0;
+  let failures = 0;
+
+  const components = [];
+  const walkSrc = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) walkSrc(full);
+      else if (full.endsWith('.astro')) components.push(full);
+    }
+  };
+  walkSrc('src/components');
+
+  for (const file of components) {
+    const source = readFileSync(file, 'utf8');
+    const frontmatter = /^---\n([\s\S]*?)\n---/.exec(source)?.[1];
+    if (!frontmatter) continue;
+    checks++;
+    if (!/^\s*as\??\s*:/m.test(frontmatter)) continue;
+    if (file.endsWith('Section.astro')) {
+      notes.push(`${file}: declares \`as\` — the one sanctioned use (§4.2), typing re-verified`);
+      continue;
+    }
+    failures++;
+    notes.push(
+      `${file}: declares an \`as\` prop. §4.2 reserves that NAME for Section — on a leaf ` +
+        'component it can discard the entire Props type, silently. Rename it (headingLevel, ' +
+        'element, variant …).',
+    );
+  }
+
+  notes.push(`${checks} component(s) scanned for a reserved \`as\` prop`);
+  return { checks, failures, notes };
+}
+
 const CONTRACTS = [
   ['form ships disabled (§8)', formShipsDisabled],
+  ['`as` reserved for Section (§4.2)', asPropReservedForSection],
   ['production omits styleguide (§2.4)', productionOmitsStyleguide],
 ];
 
@@ -167,7 +223,7 @@ export function contracts() {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const r = contracts();
   console.log(line(r));
   for (const n of r.notes) console.log(`         ${n}`);

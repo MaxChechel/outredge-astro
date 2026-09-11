@@ -24,6 +24,7 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { ok, bad, dim } from './lib/report.mjs';
+import { assertServingDist } from './lib/served.mjs';
 
 const WRANGLER = 'wrangler@4';
 const LIGHTHOUSE = 'lighthouse@12';
@@ -91,12 +92,25 @@ server.stderr.on('data', (d) => (serverErr += d));
 let failures = 0;
 const rows = [];
 
+/* wrangler is a child process, not a daemon, but an abnormal exit still leaves
+   it running and holding the port for the next run to find. */
+const stopServer = () => server.kill();
+process.once('exit', stopServer);
+process.once('SIGINT', () => { stopServer(); process.exit(130); });
+process.once('SIGTERM', () => { stopServer(); process.exit(143); });
+
 try {
   if (!(await waitFor(BASE))) {
     console.log(bad(`  wrangler never came up on ${BASE}`));
     console.log(dim(serverErr.slice(-1200)));
     process.exit(1);
   }
+
+  /* Confirm wrangler is serving the build we just made and not whatever else
+     happens to be on this port. A gate number about the wrong artifact is worse
+     than no gate number, because it gets recorded. */
+  const identity = await assertServingDist(BASE);
+  console.log(dim(`  serving dist (${identity.bytes} B on /)`));
 
   for (const { path, categories, why } of PAGES) {
     const slug = path === '/' ? 'home' : path.replace(/\W+/g, '-').replace(/^-|-$/g, '');

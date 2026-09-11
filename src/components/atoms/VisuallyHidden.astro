@@ -4,18 +4,23 @@
  *
  * Wraps the `sr-only` utility so intent is legible in markup and there is one
  * place to change the technique if it ever needs to.
+ *
+ * THE PROP IS `element`, NOT `as`, and that is not cosmetic. This component used
+ * to call it `as`, and its ENTIRE Props type was silently discarded as a result:
+ * `<VisuallyHidden as={42} nonsense="x">` raised no error at all. §4.2 reserves
+ * the NAME `as` for Section; every leaf component uses something else.
  */
 interface Props {
   /** `span` inside a phrase, `div` around block content. */
-  as?: 'span' | 'div';
+  element?: 'span' | 'div';
   class?: string;
 }
 
-const { as = 'span', class: className } = Astro.props as Props;
+const { element = 'span', class: className } = Astro.props as Props;
 ---
 
 {
-  as === 'div' ? (
+  element === 'div' ? (
     <div class:list={['sr-only', className]}><slot /></div>
   ) : (
     <span class:list={['sr-only', className]}><slot /></span>

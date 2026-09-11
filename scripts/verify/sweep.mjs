@@ -7,6 +7,8 @@
 
 import { connect, PAGES, WIDTHS, BASE } from './lib/cdp.mjs';
 import { result, line, passed } from './lib/report.mjs';
+import { isMain } from './lib/main.mjs';
+import { assertServingDist } from './lib/served.mjs';
 
 /**
  * Runs in the page.
@@ -66,6 +68,11 @@ const PROBE = `(() => {
 })()`;
 
 export async function sweep() {
+  /* Before a single measurement, confirm this port is serving the build under
+     test. A check whose counts are real but whose referent is somebody else's
+     website has proven nothing — see lib/served.mjs. */
+  await assertServingDist(BASE);
+
   const page = await connect(9400, 'outredge-verify-sweep');
   await page.send('Page.enable');
   await page.send('Runtime.enable');
@@ -125,7 +132,7 @@ export async function sweep() {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const r = await sweep();
   console.log(line(r));
   for (const n of r.notes) console.log(`         ${n}`);

@@ -13,6 +13,7 @@
 
 import { spawn } from 'node:child_process';
 import { line, passed, ok, bad, dim } from './lib/report.mjs';
+import { startPreview } from './lib/preview.mjs';
 import { contrast } from './contrast.mjs';
 import { contracts } from './contracts.mjs';
 import { jsCensus } from './js-census.mjs';
@@ -20,8 +21,9 @@ import { sweep } from './sweep.mjs';
 import { axe } from './axe.mjs';
 
 const PORT = Number(process.env.PORT ?? 4321);
-const BASE = process.env.BASE ?? `http://localhost:${PORT}`;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/* The base URL and the wait-for-server loop moved into lib/preview.mjs, which
+   owns the server's lifecycle and proves what is on the port before returning
+   it. Each check imports BASE from lib/cdp.mjs for itself. */
 
 function run(cmd, args, env = {}) {
   return new Promise((resolve) => {
@@ -36,22 +38,8 @@ function run(cmd, args, env = {}) {
   });
 }
 
-async function waitForServer(url, timeoutMs = 30_000) {
-  const started = Date.now();
-  while (Date.now() - started < timeoutMs) {
-    try {
-      const res = await fetch(url, { redirect: 'manual' });
-      if (res.status < 500) return true;
-    } catch {
-      /* not up yet */
-    }
-    await sleep(250);
-  }
-  return false;
-}
-
 const results = [];
-let server;
+let preview;
 
 try {
   console.log(dim('\nverify — ARCHITECTURE §9\n'));
@@ -93,19 +81,20 @@ try {
   results.push(contracts());
 
   // --- serve, then the rendered checks ---------------------------------------
-  process.stdout.write(dim('  starting preview server…\r'));
-  server = spawn('npx', ['astro', 'preview', '--port', String(PORT)], { stdio: 'ignore' });
-  if (!(await waitForServer(BASE))) {
-    console.log(bad(`\n  preview server never came up on ${BASE}`));
-    process.exit(1);
-  }
+  //
+  // startPreview owns the daemon's whole lifecycle and refuses to hand back a
+  // port it has not proved is serving THIS build. See lib/preview.mjs for what
+  // that cost.
+  process.stdout.write(dim('  starting preview server…      \r'));
+  preview = await startPreview({ port: PORT });
+  process.stdout.write(dim(`  serving dist (${preview.bytes} B on /)…   \r`));
 
   process.stdout.write(dim('  sweep (7 widths)…            \r'));
   results.push(await sweep());
   process.stdout.write(dim('  axe-core…                    \r'));
   results.push(await axe());
 } finally {
-  server?.kill();
+  preview?.stop();
 }
 
 // --- report ------------------------------------------------------------------

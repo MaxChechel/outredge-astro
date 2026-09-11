@@ -23,6 +23,7 @@ import {
   AA,
 } from './lib/contrast.mjs';
 import { result, line, passed } from './lib/report.mjs';
+import { isMain } from './lib/main.mjs';
 
 const DIST = process.env.DIST ?? 'dist';
 
@@ -89,7 +90,7 @@ export function contrast() {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const r = contrast();
   console.log(line(r));
   for (const n of r.notes) console.log(`         ${n}`);

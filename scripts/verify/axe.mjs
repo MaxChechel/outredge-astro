@@ -11,6 +11,8 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { connect, PAGES, BASE } from './lib/cdp.mjs';
 import { result, line, passed } from './lib/report.mjs';
+import { isMain } from './lib/main.mjs';
+import { assertServingDist } from './lib/served.mjs';
 
 const require = createRequire(import.meta.url);
 const AXE = readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8');
@@ -20,6 +22,11 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-prac
 const WIDTHS = [390, 1440];
 
 export async function axe() {
+  /* Before a single measurement, confirm this port is serving the build under
+     test. A check whose counts are real but whose referent is somebody else's
+     website has proven nothing — see lib/served.mjs. */
+  await assertServingDist(BASE);
+
   const page = await connect(9401, 'outredge-verify-axe');
   await page.send('Page.enable');
   await page.send('Runtime.enable');
@@ -70,7 +77,7 @@ export async function axe() {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const r = await axe();
   console.log(line(r));
   for (const n of r.notes) console.log(`         ${n}`);

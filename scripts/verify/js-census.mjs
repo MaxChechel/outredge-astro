@@ -11,6 +11,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { result, line, passed, bytes } from './lib/report.mjs';
+import { isMain } from './lib/main.mjs';
 
 const DIST = process.env.DIST ?? 'dist';
 
@@ -137,7 +138,7 @@ export function jsCensus() {
   });
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMain(import.meta.url)) {
   const r = jsCensus();
   console.log(line(r));
   for (const n of r.notes) console.log(`         ${n}`);

@@ -155,6 +155,13 @@ taste: in `--color-*`, Tailwind generates every utility for every token, so
 `border-surface`, `fill-surface`, `divide-surface`, `ring-surface`,
 `from-surface` — all compiling silently into a page that looks almost right.
 
+> **Measured, not argued.** The Outredge site predates this rule and keeps its
+> semantic tokens inside `--color-*`. Typing the illegal forms there and reading
+> the built CSS: `bg-text`, `text-bg`, `border-text`, `fill-text`, `ring-border`,
+> `from-accent` and `caret-text` **all compile**. Seven ways to paint text onto a
+> background and a background onto text, none of which any review would catch,
+> all of which stop existing the moment the tokens leave the namespace.
+
 The tokens are therefore plain custom properties, each exposed by **one explicit
 `@utility`, in its legal role only**:
 
@@ -331,18 +338,36 @@ not a component. They are siblings, not subclasses.
 Block rules:
 - **Heading level is always a prop** (`headingLevel={2|3}`) — same block, correct
   outline anywhere. One `h1` per page, zero skips, verified.
-- **Dynamic-tag caveat, and the wider rule it turned out to be:** `const { as:
-  Tag } = Astro.props` + `<Tag>` silently disables prop-type inference. Leaf
-  components branch on literal elements; `<Tag>` is reserved for Section, with
-  typing re-verified.
-  **The trigger is the prop NAME, not the dynamic tag.** A leaf component that
-  merely *declares* `as?: 'h2' | 'h3'` in its `Props` — and renders literal
-  elements — has its entire `Props` type discarded: `astro check` then types it
-  as `IntrinsicAttributes` with no `& Props`, and **every prop on that component
-  stops being checked**, silently. So `as` is reserved for Section as a NAME.
-  Leaves take `headingLevel`, which is what this section already called it.
-  How to see it: `astro check` reporting a component's props as
-  `IntrinsicAttributes` rather than `IntrinsicAttributes & Props`.
+- **Dynamic-tag caveat:** `const { as: Tag } = Astro.props` + `<Tag>` silently
+  disables prop-type inference. **Leaf components branch on literal elements;
+  `<Tag>` is reserved for Section, with typing re-verified.** That rule is
+  unchanged and is the one to follow.
+
+  **The mechanism, bisected against ground truth** (an earlier revision of this
+  section stated it wrongly, and a rule that mis-states its own trigger is a rule
+  people stop believing). A component's entire `Props` type is discarded when
+  **both** of these hold:
+
+  1. its `Props` declares a key named `as`, and
+  2. the frontmatter's **last statement** is the `Astro.props as Props`
+     destructure.
+
+  Add any statement after that destructure and the type comes back. It bites
+  whether or not `as` is destructured, and whether or not it is renamed on
+  destructure (`as: level`). It does not bite when the key is called anything
+  else.
+
+  The consequence is that **every prop on that component stops being checked,
+  silently** — `<VisuallyHidden as={42} nonsense="x">` raised no error at all
+  until this was found. Because whether it bites depends on an unrelated detail
+  of the file, the dependable rule is about the NAME: **`as` is reserved for
+  Section.** Leaves take `headingLevel`, `element`, `variant` — anything else.
+  `scripts/verify/contracts.mjs` enforces the name, because the failure is the
+  ABSENCE of a type error and there is nothing for `astro check` to report.
+
+  How to see it by hand: pass a bogus prop and read the message. `IntrinsicAttributes
+  & Props` means the type is intact; a bare `IntrinsicAttributes`, or no error at
+  all, means it is gone.
 - Used 3+ times with identical meaning → becomes a block. No arbitrary values
   (`p-[13px]`) without a justifying comment; twice = new token.
 
@@ -515,6 +540,8 @@ missing required slot **fails the build**.
   violations.
 - **Contract assertions** against the built HTML for rules the compiler cannot
   enforce (see below).
+- **Referent assertion** before any rendered check: the port under test is
+  serving this build, proven by comparison, not assumed.
 - Lighthouse mobile, homepage + heaviest page, behind real host config:
   **100/100/100/100 is the bar**, numbers recorded.
 
@@ -538,6 +565,32 @@ must demonstrate its own failure mode once — fault-inject the thing it exists 
 catch, watch it fail with a legible message and a non-zero exit, restore — before
 that check counts as part of the pass. A check whose red path has never run is an
 assertion about the harness, not about the code.
+
+**A check must verify its referent.** Failing legibly and reporting its own count
+are not enough: a check also has to establish that it is measuring the artifact
+under test. **A harness that has never been proven to be measuring the artifact
+under test has proven nothing.**
+
+> **The port-4321 incident, which is why this is a rule.** A preview server left
+> running by a *different repository* held the port this harness uses. Every
+> browser-driven check connected to it, requested eleven URLs that do not exist
+> on that site, was served that site's fallback page — one `h1`, no overflow, no
+> axe violations — and reported **"77 page/width checks, 0 failures"** and
+> **"22 axe runs, 0 violations"**. Both numbers were real. Both were about
+> somebody else's website, and a full phase pass was recorded from them.
+>
+> This is the "pass over nothing" failure arriving through a door the counting
+> rule does not cover: the count was not zero, it was *pointed at the wrong
+> thing*. Counting how much you verified is necessary and not sufficient — you
+> also have to know **what** you verified.
+
+In practice: `scripts/verify/lib/served.mjs` fetches a page over HTTP and compares
+it byte-for-byte with the file the build just wrote, before any browser check
+trusts the port; and `scripts/verify/lib/preview.mjs` owns the server's whole
+lifecycle — stopping a daemon the project left behind, refusing to start against a
+port something else already owns, and cleaning up on normal exit, on SIGINT/SIGTERM
+and on an uncaught throw. `astro preview` daemonises, so killing the spawned child
+leaks the server; that leak is what created the incident above.
 
 **A check with manual setup is a check that dies.** Anything a check needs to
 run — a browser, `axe-core`, a pinned CLI — is wired so that `npm run verify`

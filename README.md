@@ -58,19 +58,29 @@ real output:
 | JS census | every script in `dist` is named, justified and inside its gzipped budget. An undeclared one fails the run |
 | overflow + structure | no horizontal overflow at 320/360/390/430/768/1024/1440, exactly one `h1`, zero heading skips, every image with dimensions and a non-null alt |
 | axe-core | wcag2a/aa, 21a/aa, 22aa and best-practice, at 390 and 1440, zero violations |
-| build contracts | rules the compiler cannot enforce, asserted against the built HTML: a form with no configured endpoint ships disabled, a production build emits no styleguide route |
+| build contracts | rules the compiler cannot enforce, asserted against the built HTML and source: a form with no configured endpoint ships disabled, `as` is reserved for Section, a production build emits no styleguide route |
 
 **Every check reports its own executed count, and a check reporting zero fails
 the run even with zero failures.** A verification that cannot say how much it
 verified has not verified anything — this system has shipped a green result from
 a broken harness before, and the counting is the fix.
 
+| referent guard | before any rendered check: the port under test is serving *this* build, proven by byte comparison |
+
 **Every check has demonstrated its own failure mode.** A harness that has never
 failed is a harness nobody has tested, so each check was fault-injected — the
 thing it exists to catch was introduced, the check failed with a legible message
-and exit 1, and the fault was reverted. One of those injections found a bug in
-the check itself. A new check does not count as part of the pass until it has
-done the same.
+and exit 1, and the fault was reverted. Two of those injections found bugs in the
+harness itself. A new check does not count as part of the pass until it has done
+the same.
+
+**And every check verifies its referent.** `npm run verify` refuses to start
+against a port it did not open, and compares the served bytes against `dist/`
+before any browser check trusts what it finds there. This is not paranoia: a
+preview daemon left running by another repository once held this port, and the
+harness reported 77 page/width checks and 22 axe runs — all passing, all about
+somebody else's website. Counting how much you verified is necessary and not
+sufficient; you also have to know what you verified.
 
 Needs Google Chrome. Set `CHROME=/path/to/chrome` if it is somewhere unusual.
 

@@ -911,3 +911,147 @@ that exists to prove the contrast rule.
 - **No client project scaffolded.** Per the brief, this stops here.
 
 **Phase 3 complete. The template flag is Max's.**
+
+---
+
+## 2026-09-11 — Entry 8. Correction phase: four defects the Outredge backport found
+
+Backporting this template into the Outredge site put the harness in a directory
+called *"outredge website"* and next to a second copy of itself. Both conditions
+were novel, and each broke something that had passed every phase gate here.
+Fixed before any client project is copied from this repo.
+
+### 1. The main-module guard was broken on any path containing a space
+
+`` import.meta.url === `file://${process.argv[1]}` `` compares a percent-encoded
+URL with a raw filesystem path. From a directory with a space in it:
+
+```
+  import.meta.url   : file:///…/spaced%20path%20check/guard-demo.mjs
+  file:// + argv[1] : file:///…/spaced path check/guard-demo.mjs
+  isMain = false
+```
+
+So **every check script ran, matched nothing, printed nothing and exited 0.** Not
+a pass over zero checks — a pass with no output at all, which the §9 counting rule
+never sees because the counting code never runs. Five scripts carried it.
+
+Fixed with `lib/main.mjs` (`pathToFileURL`), ported from the Outredge repo.
+Verified by running the suite from
+`…/scratchpad/spaced path check`: **6 checks, 92 assertions, §9 PASS**, every
+check printing its own line.
+
+### 2. The runner leaked its preview daemon
+
+`astro preview` **daemonises**. The runner spawned `npx astro preview` and called
+`server.kill()` in `finally`, which kills the npx child and leaves the server
+listening. Confirmed here: after killing the child, `curl` still returns 200 and
+`astro preview status` reports the pid alive.
+
+Now `lib/preview.mjs` owns the whole lifecycle:
+
+- stops any daemon this project left behind, before starting;
+- **refuses to start if something else already owns the port** rather than
+  silently measuring it;
+- cleans up on normal exit, on `SIGINT`/`SIGTERM`, and on an uncaught throw —
+  because the failure mode is a server that outlives the run that started it.
+
+Verified: after a full `npm run verify`, port 4321 is free and
+`astro preview status` reports no server.
+
+### 3. There was no served-build guard
+
+This is the one that matters most, because it is the defect the other two
+produced. A leaked daemon **from this repository** held port 4321 while the
+Outredge harness ran. Every browser-driven check connected to it, requested eleven
+URLs that do not exist on this site, was served this site's fallback page — one
+`h1`, no overflow, no axe violations — and reported **77 page/width checks, 0
+failures** and **22 axe runs, 0 violations**.
+
+Both numbers were real. Both were about the wrong website, and a phase pass was
+recorded from them.
+
+`lib/served.mjs` fetches a page over HTTP and compares it **byte-for-byte** with
+the file the build just wrote, naming both titles and both byte counts on a
+mismatch. Wired into `sweep`, `axe`, the runner, and `lighthouse` — every check
+that trusts a port now proves what is on it first.
+
+### 4. §9 amended: a check must verify its referent
+
+> A harness that has never been proven to be measuring the artifact under test has
+> proven nothing.
+
+Added alongside the failure-mode rule, with the port-4321 incident recorded as its
+rationale. The framing that matters: this is the "pass over nothing" failure
+arriving through a door the counting rule does not cover — **the count was not
+zero, it was pointed at the wrong thing.**
+
+### 5. §4.2's mechanism was overstated, and `VisuallyHidden` was untyped
+
+The spec said a leaf component that *declares* `as?:` has its `Props` discarded.
+Bisected against ground truth in the Outredge repo and re-confirmed here. It takes
+**both**:
+
+1. a `Props` key named `as`, **and**
+2. the frontmatter's **last statement** being the `Astro.props as Props`
+   destructure.
+
+Any statement after that destructure and the type comes back — which is why
+`SectionHeader` survived there and `VisuallyHidden` did not. It bites whether or
+not `as` is destructured, and whether or not it is renamed on destructure.
+
+**`VisuallyHidden` was live-broken here too**: `<VisuallyHidden as={42}
+nonsense="x">` raised **no error at all**. Its prop is now `element`, and both
+forms are type errors. Every other component was re-verified — 19 scanned,
+`Section` is the only other declarant and is the sanctioned use.
+
+The practical rule is unchanged and still right: **`as` is reserved for Section as
+a NAME.** Because whether it bites depends on an unrelated detail of the file, a
+rule about circumstances is a rule someone re-derives wrongly. So it is now
+enforced statically by `contracts.mjs` — the failure is the *absence* of a type
+error, so reading the source for the name is the only reliable detector.
+
+### 6. §2.3 now cites measured evidence
+
+The rule that semantic colours live outside `--color-*` was argued from first
+principles. The Outredge site, which predates the rule, provided the measurement:
+typing the illegal forms there and reading the built CSS, **`bg-text`, `text-bg`,
+`border-text`, `fill-text`, `ring-border`, `from-accent` and `caret-text` all
+compile.** Seven ways to paint text onto a background and a background onto text,
+none of which a review would catch. Cited in §2.3.
+
+### Fault-injection table — the new guards
+
+| check | injected fault | result |
+| --- | --- | --- |
+| main-module guard | ran the suite from `…/spaced path check` | before: no output, exit 0. after: 6 checks, 92 assertions, all printing |
+| served-build guard | pointed it at the Outredge repo's preview server | `IS NOT SERVING dist/` naming both titles and both byte counts, exit 1 |
+| preview lifecycle | started it against a port another project owned | `already in use by something this project did not start`, refuses to run, exit 1 |
+| sweep (referent) | same stranger's port | refuses to measure it rather than passing over it, exit 1 |
+| daemon lifecycle | full `verify` run, then checked the port | port free, `no preview server is running` |
+| `as` reserved (§4.2) | — | 19 components scanned; `VisuallyHidden` was the violation, now fixed |
+
+The six existing checks' injections from Entry 6 still stand.
+
+### Verified
+
+- **From a spaced path**: 6 checks, **92 assertions**, §9 PASS. No daemon left.
+- **Canonical path**: same, 92 assertions, §9 PASS. No daemon left.
+- `astro check`: 0 errors, 0 warnings, 0 hints.
+- Assertion count rose from 73 to 92: the 19 new `as`-prop component scans.
+
+### One thing I did not do, and would want ruled before the freeze
+
+**The dead-class check exists in the Outredge repo and not here.** It was written
+during the backport as the generalisation of the `duration-base` bug — it reads
+every class in the built HTML and fails on any that resolves to no rule
+(`209 distinct classes, all resolve`). It would have caught `duration-base` on the
+day it was introduced, and it catches the whole family: a wrong namespace, a typo,
+a utility killed by a `--*: initial` reset, a class left by a refactor.
+
+It was not in this phase's scope, so it is not here. But it leaves **the canonical
+source weaker than its downstream copy**, which is the wrong way round for a
+template about to be frozen. Porting it is ~120 lines and one entry in the
+contracts table. Flagging rather than doing it.
+
+**Correction phase complete. Stopping for review.**
