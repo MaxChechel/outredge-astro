@@ -63,17 +63,23 @@ references a primitive.
 - **Colour ramp**, tuned so the semantic layer below can clear AA — see 2.3. The
   ramp does **not** live in the `--color-*` namespace, so `bg-gray-500` does not
   compile. Primitives are not a vocabulary.
-- **Fluid type SIZES**: `--text-xs / sm / base / md / lg / xl / 2xl / 3xl / 4xl`,
-  every step a `clamp()` mobile→desktop. **Breakpointless — type never jumps at a
-  media query.**
-  - Named for **size, not role**. Heading level is already a prop (4.2), so
-    visual size must be nameable independently or the two silently fuse.
-  - **`md` is the lede step** — a deliberate deviation from stock naming, where
-    the ramp runs sm → base → lg with no step between body and lede. That gap is
-    the most-used step in marketing copy and it deserves a name.
-  - Type-style classes (headings, body, lede, eyebrow, caption) reference size
-    tokens. The styleguide annotates the default role mapping: eyebrow = xs,
-    caption = sm, body = base, lede = md, heading ramp md → 4xl.
+- **Fluid type scale, named for ROLE**: `--text-h1 … --text-h6`, plus
+  `--text-lede`, `--text-body`, `--text-body-sm`, `--text-caption`,
+  `--text-eyebrow`. Every step a `clamp()` mobile→desktop. **Breakpointless —
+  type never jumps at a media query.**
+  - **The scale is not in `@theme`** (see 2.1.1). `--text-*` is reset to
+    `initial`, so no bare `text-<size>` utility exists at all: the type-style
+    classes in 2.5 are the only way to apply type, and each is the whole
+    treatment rather than a font-size.
+  - **Visual size stays decoupled from heading level.** The decoupling lives in
+    the CLASS, which any element may wear — `<h2 class="text-h4">` is correct and
+    ordinary — not in the token name. A component takes the level as a prop, the
+    sweep enforces one `h1` and zero skips, and neither cares what size anything
+    is.
+  - Known cost, stated so nobody rediscovers it: something large that is not a
+    heading — a stat, a pull quote, a figure number — references `--text-h2` and
+    reads as though it were claiming to be one. Enough of those in one project is
+    the moment to add a role for them, not to rename the ramp.
 - **Fluid spacing scale**: `--spacing-3xs / 2xs / xs / sm / md / lg / xl / 2xl /
   3xl / 4xl`, `clamp()` throughout, from a ~2px hairline gap to ~12rem. Plus the
   section-rhythm trio `--spacing-section-none/sm/md/lg` and the derived
@@ -85,10 +91,32 @@ references a primitive.
     every model's memory — `p-4` means 1rem to the entire industry — and the
     failure is silent in both directions.
 - **Layout tokens** — `--site-margin`, `--container-main / narrow / measure` —
-  are **plain custom properties, deliberately outside `@theme`**. See 3.
+  are **plain custom properties, deliberately outside `@theme`**. See 3.1.
 - **Motion tokens** — durations and easings, including the generated spring
   `linear()` curves. See 12.
 - Radii, borders, focus. Fonts: only weights applied.
+
+### 2.1.1 What belongs in `@theme`, and what does not
+
+> **Put a token in `@theme` when every utility Tailwind would generate from it is
+> a utility you want someone to be able to type. Otherwise keep it out, and
+> expose exactly the roles that are legal.**
+
+`@theme` is generous: it generates every utility in a namespace for every token
+in it. That is right for spacing — `p-md`, `mt-lg`, `gap-sm` are all legal — and
+wrong wherever a token has one legal role. Three groups therefore sit outside it,
+and the consequences are the point of the exercise:
+
+| group | what does not exist as a result |
+| --- | --- |
+| semantic colours (2.3) | `bg-primary`, `text-surface`, `border-accent-contrast`, `fill-line`, `ring-subtle` … |
+| the type scale (2.1) | `text-xs`, `text-2xl`, and a `text-h1` font-size utility shadowing the `.text-h1` type style |
+| layout tokens (3.1) | `max-w-main`, `max-w-narrow`, `p-site-margin` |
+
+Each token is exposed by one explicit `@utility` or one type-style class, in its
+legal role only. Adding a token means adding its exposure, deliberately. **That
+deliberation is the feature**, and it is what makes the system's rules
+compile-time facts rather than review comments.
 
 ### 2.2 Kill the stock scales
 `--color-*: initial; --spacing-*: initial; --text-*: initial;` etc. Tokens are
@@ -190,7 +218,9 @@ primitives using these; it does not copy the starter's values.
 
 ### 2.5 Base, type styles, prose
 Semantic HTML defaults, `:focus-visible` states, `prefers-reduced-motion`
-handling. Type styles (h1…h6, body, lede, eyebrow, caption) defined **once**.
+handling. Type styles (`.text-h1`…`.text-h6`, `.text-lede`, `.text-body`,
+`.text-body-sm`, `.text-caption`, `.text-eyebrow`) defined **once**, and they are
+the only way to apply type — there is no bare `text-<size>` to fall back to.
 
 **Prose is one scoped `.prose` style of our own — NOT the Tailwind typography
 plugin.** The plugin ships its own type scale, spacing scale and colour opinions,

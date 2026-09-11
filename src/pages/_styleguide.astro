@@ -108,19 +108,20 @@ const SEMANTIC_ROLES: Record<string, string> = {
 };
 const semanticTokens = Object.keys(SEMANTIC_ROLES);
 
-/* Type sizes and their default role mapping (§2.1). */
+/* The type scale. One token per role, one class per role — there is no bare
+   `text-<size>` utility in the system to show alongside them (§1b). */
 const TYPE_ROLES = [
-  { token: '--text-4xl', style: 'text-h1', role: 'h1', sample: 'Heading one' },
-  { token: '--text-3xl', style: 'text-h2', role: 'h2', sample: 'Heading two' },
-  { token: '--text-2xl', style: 'text-h3', role: 'h3', sample: 'Heading three' },
-  { token: '--text-xl', style: 'text-h4', role: 'h4', sample: 'Heading four' },
-  { token: '--text-lg', style: 'text-h5', role: 'h5', sample: 'Heading five' },
-  { token: '--text-md', style: 'text-h6', role: 'h6 · and the lede step', sample: 'Heading six' },
-  { token: '--text-md', style: 'text-lede', role: 'lede', sample: 'Lede — the opening paragraph.' },
-  { token: '--text-base', style: 'text-body', role: 'body', sample: 'Body — the default reading size.' },
-  { token: '--text-sm', style: 'text-body-sm', role: 'body-sm', sample: 'Small body — dense UI copy.' },
-  { token: '--text-sm', style: 'text-caption', role: 'caption', sample: 'Caption — figure captions, meta.' },
-  { token: '--text-xs', style: 'text-eyebrow', role: 'eyebrow', sample: 'Eyebrow label' },
+  { token: '--text-h1', style: 'text-h1', note: '36 → 64px', sample: 'Heading one' },
+  { token: '--text-h2', style: 'text-h2', note: '32 → 48px', sample: 'Heading two' },
+  { token: '--text-h3', style: 'text-h3', note: '28 → 38px', sample: 'Heading three' },
+  { token: '--text-h4', style: 'text-h4', note: '24 → 30px', sample: 'Heading four' },
+  { token: '--text-h5', style: 'text-h5', note: '20 → 24px', sample: 'Heading five' },
+  { token: '--text-h6', style: 'text-h6', note: '18 → 20px', sample: 'Heading six' },
+  { token: '--text-lede', style: 'text-lede', note: '18 → 20px', sample: 'Lede — the opening paragraph.' },
+  { token: '--text-body', style: 'text-body', note: '16 → 17px', sample: 'Body — the default reading size.' },
+  { token: '--text-body-sm', style: 'text-body-sm', note: '14 → 15px', sample: 'Small body — dense UI copy.' },
+  { token: '--text-caption', style: 'text-caption', note: '14 → 15px', sample: 'Caption — figure captions, meta.' },
+  { token: '--text-eyebrow', style: 'text-eyebrow', note: '12 → 13px', sample: 'Eyebrow label' },
 ];
 
 const SPACING_STEPS = ['3xs', '2xs', 'xs', 'sm', 'md', 'lg', 'xl', '2xl', '3xl', '4xl'];
@@ -153,7 +154,7 @@ const items = await getItems();
 const INDEX = [
   ['01', 'color', 'Colour tokens'],
   ['02', 'contrast', 'Contrast matrix'],
-  ['03', 'type', 'Type sizes'],
+  ['03', 'type', 'Type scale'],
   ['04', 'spacing', 'Spacing scale'],
   ['05', 'layout', 'Layout & gutters'],
   ['06', 'section', 'Section'],
@@ -362,17 +363,17 @@ const INDEX = [
     <div class="gap-lg flex flex-col">
       <SectionHeader
         eyebrow="03 · type"
-        heading="Type sizes"
-        lede="Named for SIZE, not for role. Heading level is already a prop, so visual size has to be nameable independently or the two silently fuse. Every step is a clamp() between a 320px and a 1312px viewport — there are no media queries in the type system at all."
+        heading="Type scale"
+        lede="One token per role, one class per role, and no bare text-<size> utility to fall back to — the scale is not in @theme, so an element either wears a named style or inherits one. Every step is a clamp() between a 320px and a 1312px viewport; there are no media queries in the type system at all."
         split
       />
 
       <ul class="list-bare flex flex-col">
         {
-          TYPE_ROLES.map(({ token, style, role, sample }) => (
+          TYPE_ROLES.map(({ token, style, note, sample }) => (
             <li class="border-line gap-3xs py-sm flex flex-col border-t">
               <p class="sg-meta">
-                <span class="sg-mono">{token}</span> · <span class="sg-mono">.{style}</span> · default role: {role}
+                <span class="sg-mono">{token}</span> · <span class="sg-mono">.{style}</span> · {note}
               </p>
               <p class={style}>{sample}</p>
             </li>
@@ -380,10 +381,22 @@ const INDEX = [
         }
       </ul>
 
-      <p class="sg-meta measure">
-        <strong class="text-primary">md is the lede step.</strong> Stock Tailwind runs sm → base → lg with nothing
-        between body and lede, and that gap is the most-used step in marketing copy. Deliberate deviation.
-      </p>
+      <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+        <h3 class="text-h6 text-primary">Size is still decoupled from level</h3>
+        <p class="text-body-sm text-secondary measure">
+          Naming the tokens for their roles does not re-couple them: the decoupling lives in the CLASS, which any
+          element may wear. An <span class="sg-mono">&lt;h2 class="text-h4"&gt;</span> is correct and ordinary —
+          the outline is a semantics decision, the size is a design one, and a component takes the level as a prop
+          so the two never have to agree.
+        </p>
+        <p class="sg-meta measure">
+          Below: an <span class="sg-mono">&lt;h4&gt;</span> wearing <span class="sg-mono">.text-h2</span>, and an
+          <span class="sg-mono">&lt;h3&gt;</span> wearing <span class="sg-mono">.text-caption</span>. The sweep
+          enforces one h1 and zero skips; it does not care what size anything is.
+        </p>
+        <h4 class="text-h2 text-primary">An h4 at h2 size</h4>
+        <h4 class="text-caption text-tertiary">An h4 at caption size</h4>
+      </div>
     </div>
   </Section>
 

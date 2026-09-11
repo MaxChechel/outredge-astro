@@ -402,3 +402,52 @@ that furniture to every client project.
    abstract instead.
 
 **Phase 1 complete. Stopping for review.**
+
+---
+
+## 2026-09-11 — Entry 4. Type scale renamed to roles; real wordmark
+
+**Amendment 7 is reversed on instruction.** The scale was `--text-xs … --text-4xl`
+(named for size); it is now `--text-h1 … --text-h6`, `--text-lede`,
+`--text-body`, `--text-body-sm`, `--text-caption`, `--text-eyebrow` (named for
+role), which is what `styleguide-mock-v2.html` had all along. The two inputs
+disagreed and the mock wins.
+
+**Every computed value is unchanged** — this is a rename, not a retune, so the
+page that was reviewed still renders identically. `--text-h6`/`--text-lede` and
+`--text-body-sm`/`--text-caption` resolve to the same size today but are declared
+separately, so either can move later without dragging the other.
+
+**Amendment 7's stated benefit survives the rename, and it is worth being precise
+about why.** The decoupling of size from heading level lives in the CLASS, which
+any element may wear — `<h2 class="text-h4">` — not in the token name. The
+styleguide now demonstrates that directly (an `<h4>` wearing `.text-h2`, and an
+`<h4>` wearing `.text-caption`) rather than asserting it. The one real loss,
+recorded in ARCHITECTURE §2.1 so nobody rediscovers it: a large thing that is not
+a heading — a stat, a pull quote, a figure number — now references `--text-h2`
+and reads as though it were claiming to be one.
+
+**The scale left `@theme` as part of the rename, and had to.** In `@theme`,
+`--text-h1` generates a `text-h1` FONT-SIZE utility sitting alongside the
+`.text-h1` type style — two definitions of one class name, one of which carries
+only the size. Outside `@theme` there is one `.text-h1` and it is the whole
+treatment, and `--text-*: initial` means no bare `text-<size>` exists at all.
+
+That is now the third group of tokens outside `@theme`, so the pattern is stated
+once as a rule rather than three times as a workaround, in ARCHITECTURE §2.1.1 and
+at the head of `global.css` §1b:
+
+> Put a token in `@theme` when every utility Tailwind would generate from it is a
+> utility you want someone to be able to type. Otherwise keep it out, and expose
+> exactly the roles that are legal.
+
+**Q7 closed: the placeholder wordmark is replaced by the real Outredge mark**,
+supplied by Max. This repo's own identity is Outredge, so its nav and styleguide
+should carry it; it stays marked `PROJECT: replace` for client copies, and the
+component still takes no fixed height so a client mark with a different aspect
+ratio does not break the nav rhythm.
+
+**Re-verified after the rename:** `astro check` 0/0/0; sweep 14 page/width checks,
+0 failures; axe 4 page/width runs, 0 violations. No bare size utility leaked back
+into the build (checked `text-xs` through `text-4xl`), and no Tailwind utility
+shadows any type-style class.

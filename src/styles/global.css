@@ -140,28 +140,14 @@
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
 
-  /* Fluid type SIZES. Deliberately named for size, not for role: a heading's
-     level is already a prop (§4.2), so its visual size must be nameable
-     independently or the two silently fuse. `.text-h2` picks a size; it is not
-     the same thing as the size.
+  /* The TYPE SCALE is not here. It is named for role — --text-h1 … --text-eyebrow
+     — and lives outside @theme in §1b, for the same reason the semantic colours
+     and the layout tokens do: so that the wrong utility does not exist.
 
-     `md` is the lede step. That is a deliberate deviation from stock Tailwind,
-     where the ramp runs sm → base → lg with no step between base and lg; the
-     gap between body and lede is the most-used step in marketing copy and it
-     deserves a name.
-
-     Every step is a clamp() interpolating between a 320px and a 1312px
-     viewport, so type never jumps at a breakpoint. There are no media queries
-     in the type system at all. */
-  --text-xs: clamp(0.75rem, 0.7298rem + 0.1008vw, 0.8125rem);     /* 12 → 13px */
-  --text-sm: clamp(0.875rem, 0.8548rem + 0.1008vw, 0.9375rem);    /* 14 → 15px */
-  --text-base: clamp(1rem, 0.9798rem + 0.1008vw, 1.0625rem);      /* 16 → 17px */
-  --text-md: clamp(1.125rem, 1.0847rem + 0.2016vw, 1.25rem);      /* 18 → 20px */
-  --text-lg: clamp(1.25rem, 1.1694rem + 0.4032vw, 1.5rem);        /* 20 → 24px */
-  --text-xl: clamp(1.5rem, 1.379rem + 0.6048vw, 1.875rem);        /* 24 → 30px */
-  --text-2xl: clamp(1.75rem, 1.5484rem + 1.0081vw, 2.375rem);     /* 28 → 38px */
-  --text-3xl: clamp(2rem, 1.6774rem + 1.6129vw, 3rem);            /* 32 → 48px */
-  --text-4xl: clamp(2.25rem, 1.6855rem + 2.8226vw, 4rem);         /* 36 → 64px */
+     In @theme, `--text-h1` would generate a `text-h1` FONT-SIZE utility sitting
+     alongside the `.text-h1` type style in §5 — two definitions of one class
+     name, one of which carries only half the style. Outside @theme there is one
+     `.text-h1`, and it is the whole treatment. */
 
   --leading-flat: 1;
   --leading-tight: 1.1;
@@ -315,11 +301,59 @@
 }
 
 /* ==========================================================================
-   1b. LAYOUT PRIMITIVES
+   1b. TOKENS DELIBERATELY OUTSIDE @theme
 
-   These sit OUTSIDE @theme on purpose, exactly as the semantic colours in §2
-   do, and for exactly the same reason: so that the wrong utility does not
-   exist.
+   Three groups of tokens in this system are plain custom properties rather than
+   `@theme` entries — the type scale below, the layout tokens below it, and the
+   semantic colours in §2. One rule covers all three:
+
+     PUT A TOKEN IN @theme WHEN EVERY UTILITY TAILWIND WOULD GENERATE FROM IT IS
+     A UTILITY YOU WANT SOMEONE TO BE ABLE TO TYPE. Otherwise keep it out, and
+     expose exactly the roles that are legal.
+
+   @theme is generous: it generates every utility in a namespace for every token
+   in it. That is right for spacing (`p-md`, `mt-lg`, `gap-sm` are all legal) and
+   wrong everywhere a token has one legal role — which is why `bg-primary`,
+   `text-surface` and `max-w-main` do not compile.
+
+   --------------------------------------------------------------------------
+   THE TYPE SCALE — named for role.
+
+   `.text-h2` is a SIZE decision; `<h2>` is an OUTLINE decision; a component
+   takes the level as a prop and the two never have to agree. An `<h2
+   class="text-h4">` is correct and ordinary here. Naming the tokens for their
+   roles does not re-couple them: the DECOUPLING LIVES IN THE CLASS, which any
+   element may wear, not in the token name.
+
+   The known cost, stated so nobody rediscovers it: something large that is not a
+   heading — a stat, a pull quote, a figure number — now references `--text-h2`
+   and reads as if it were claiming to be one. If a project ships enough of those,
+   that is the moment to add a role for them, not to rename the ramp back.
+
+   Every step is a clamp() interpolating between a 320px and a 1312px viewport, so
+   type never jumps at a breakpoint. There are no media queries in the type system
+   at all. --text-h6 and --text-lede currently resolve to the same size, as do
+   --text-body-sm and --text-caption; they are declared separately so either can
+   move without dragging the other with it.
+   ========================================================================== */
+
+:root {
+  --text-h1: clamp(2.25rem, 1.6855rem + 2.8226vw, 4rem);          /* 36 → 64px */
+  --text-h2: clamp(2rem, 1.6774rem + 1.6129vw, 3rem);             /* 32 → 48px */
+  --text-h3: clamp(1.75rem, 1.5484rem + 1.0081vw, 2.375rem);      /* 28 → 38px */
+  --text-h4: clamp(1.5rem, 1.379rem + 0.6048vw, 1.875rem);        /* 24 → 30px */
+  --text-h5: clamp(1.25rem, 1.1694rem + 0.4032vw, 1.5rem);        /* 20 → 24px */
+  --text-h6: clamp(1.125rem, 1.0847rem + 0.2016vw, 1.25rem);      /* 18 → 20px */
+
+  --text-lede: clamp(1.125rem, 1.0847rem + 0.2016vw, 1.25rem);    /* 18 → 20px */
+  --text-body: clamp(1rem, 0.9798rem + 0.1008vw, 1.0625rem);      /* 16 → 17px */
+  --text-body-sm: clamp(0.875rem, 0.8548rem + 0.1008vw, 0.9375rem); /* 14 → 15px */
+  --text-caption: clamp(0.875rem, 0.8548rem + 0.1008vw, 0.9375rem); /* 14 → 15px */
+  --text-eyebrow: clamp(0.75rem, 0.7298rem + 0.1008vw, 0.8125rem);  /* 12 → 13px */
+}
+
+/* --------------------------------------------------------------------------
+   THE LAYOUT TOKENS.
 
    If --container-main lived in @theme, Tailwind would generate `max-w-main`,
    and any child anywhere could re-apply the page container — which is the
@@ -332,7 +366,7 @@
    namespace BEFORE --container-*, so a --container-sm sitting alongside a
    --spacing-sm silently makes `max-w-sm` mean 1.25rem. Hence main / narrow /
    measure and never sm / md / lg — and now, hence no max-w-* at all.
-   ========================================================================== */
+   -------------------------------------------------------------------------- */
 
 :root {
   /* The global horizontal gutter. THE ONLY source of page-edge inline padding
@@ -583,7 +617,7 @@
     background-color: var(--bg-base);
     color: var(--text-primary);
     font-family: var(--font-sans);
-    font-size: var(--text-base);
+    font-size: var(--text-body);
     font-weight: var(--font-weight-regular);
     line-height: var(--leading-body);
     letter-spacing: var(--tracking-normal);
@@ -667,13 +701,15 @@
    Each named style is declared once. Pages and components apply a class; they
    never recompose size + weight + leading + tracking by hand.
 
+   These classes are the ONLY way to apply type in this system. There is no bare
+   `text-<size>` utility to fall back to — the scale is not in @theme (§1b) —
+   so an element either wears a named style or inherits one.
+
    Visual size is fully decoupled from heading level. `.text-h2` is a SIZE
    decision; <h2> is an OUTLINE decision; a component takes the level as a prop
-   and the two never have to agree. The default role mapping — which the
-   styleguide annotates — is:
-
-     eyebrow  xs      caption  sm      body  base      lede  md
-     h6  md    h5  lg    h4  xl    h3  2xl    h2  3xl    h1  4xl
+   and the two never have to agree. `<h2 class="text-h4">` is correct and
+   ordinary. One h1 per page and zero heading skips are enforced by the sweep,
+   not by the size something happens to be.
    ========================================================================== */
 
 @layer components {
@@ -688,37 +724,37 @@
   }
 
   .text-h1 {
-    font-size: var(--text-4xl);
+    font-size: var(--text-h1);
     line-height: var(--leading-flat);
     letter-spacing: var(--tracking-tight);
   }
 
   .text-h2 {
-    font-size: var(--text-3xl);
+    font-size: var(--text-h2);
     line-height: var(--leading-tight);
     letter-spacing: var(--tracking-tight);
   }
 
   .text-h3 {
-    font-size: var(--text-2xl);
+    font-size: var(--text-h3);
     line-height: var(--leading-tight);
     letter-spacing: var(--tracking-tight);
   }
 
   .text-h4 {
-    font-size: var(--text-xl);
+    font-size: var(--text-h4);
     line-height: var(--leading-snug);
     letter-spacing: var(--tracking-normal);
   }
 
   .text-h5 {
-    font-size: var(--text-lg);
+    font-size: var(--text-h5);
     line-height: var(--leading-snug);
     letter-spacing: var(--tracking-normal);
   }
 
   .text-h6 {
-    font-size: var(--text-md);
+    font-size: var(--text-h6);
     line-height: var(--leading-snug);
     letter-spacing: var(--tracking-normal);
   }
@@ -733,16 +769,16 @@
     text-wrap: pretty;
   }
 
-  .text-lede { font-size: var(--text-md); }
-  .text-body { font-size: var(--text-base); }
-  .text-body-sm { font-size: var(--text-sm); }
-  .text-caption { font-size: var(--text-xs); }
+  .text-lede { font-size: var(--text-lede); }
+  .text-body { font-size: var(--text-body); }
+  .text-body-sm { font-size: var(--text-body-sm); }
+  .text-caption { font-size: var(--text-caption); }
 
   /* The small label above a section heading. Carries its own colour because an
      eyebrow is tertiary by definition — if a design needs a coloured one, that
      is a new type style, not an override in markup. */
   .text-eyebrow {
-    font-size: var(--text-xs);
+    font-size: var(--text-eyebrow);
     font-weight: var(--font-weight-medium);
     line-height: var(--leading-body);
     letter-spacing: var(--tracking-wide);
@@ -775,7 +811,7 @@
   }
 
   .prose p {
-    font-size: var(--text-base);
+    font-size: var(--text-body);
     line-height: var(--leading-body);
   }
 
@@ -794,9 +830,9 @@
     margin-top: var(--spacing-xl);
   }
 
-  .prose h2 { font-size: var(--text-2xl); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); font-weight: var(--font-weight-medium); }
-  .prose h3 { font-size: var(--text-xl); line-height: var(--leading-snug); font-weight: var(--font-weight-medium); }
-  .prose h4 { font-size: var(--text-md); line-height: var(--leading-snug); font-weight: var(--font-weight-medium); }
+  .prose h2 { font-size: var(--text-h3); line-height: var(--leading-tight); letter-spacing: var(--tracking-tight); font-weight: var(--font-weight-medium); }
+  .prose h3 { font-size: var(--text-h4); line-height: var(--leading-snug); font-weight: var(--font-weight-medium); }
+  .prose h4 { font-size: var(--text-h6); line-height: var(--leading-snug); font-weight: var(--font-weight-medium); }
 
   .prose :is(ul, ol) {
     padding-left: var(--spacing-md);
@@ -820,7 +856,7 @@
     padding-left: var(--spacing-md);
     border-left: var(--border-width) solid var(--line);
     color: var(--text-primary);
-    font-size: var(--text-md);
+    font-size: var(--text-lede);
     line-height: var(--leading-snug);
   }
 
