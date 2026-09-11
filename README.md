@@ -55,6 +55,7 @@ real output:
 | --- | --- |
 | `astro check` | zero type errors, zero warnings |
 | contrast matrix | every text token on every background in every theme clears 4.5:1, computed **from the built CSS**; control boundaries clear 3:1 |
+| dead classes | every class that reaches the browser resolves to a rule, matching built HTML against built CSS. A class that styles nothing fails the run |
 | JS census | every script in `dist` is named, justified and inside its gzipped budget. An undeclared one fails the run |
 | overflow + structure | no horizontal overflow at 320/360/390/430/768/1024/1440, exactly one `h1`, zero heading skips, every image with dimensions and a non-null alt |
 | axe-core | wcag2a/aa, 21a/aa, 22aa and best-practice, at 390 and 1440, zero violations |

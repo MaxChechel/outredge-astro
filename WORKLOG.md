@@ -1055,3 +1055,139 @@ template about to be frozen. Porting it is ~120 lines and one entry in the
 contracts table. Flagging rather than doing it.
 
 **Correction phase complete. Stopping for review.**
+
+---
+
+## 2026-09-11 — Entry 9. Dead-class check ported; v1.0.0
+
+### The dead-class check
+
+Ported from the Outredge repo, where it was written as the generalisation of the
+`duration-base` bug. It asks one question:
+
+> Does every class that reaches the browser have a rule behind it?
+
+Built HTML against built CSS — not what we meant to ship, what we shipped — which
+makes it immune to how a class was assembled and catches the whole family at once:
+a wrong token namespace, a typo, a utility killed by a `--*: initial` reset, a
+class left behind by a refactor. **194 distinct classes reach the browser here and
+all 194 resolve to a rule**, with one declared exception (`group`, a Tailwind
+variant marker that styles its descendants and carries nothing itself).
+
+**One adaptation the template needed and the reference did not.** The reference
+reads only `*.css`. Astro inlines a page's scoped `<style>` into the HTML when it
+is small enough, and the styleguide's chrome is exactly that — so a
+stylesheets-only read would have reported every `sg-*` class as dead. That is the
+check crying wolf on its first run and being switched off by its second. It now
+reads both stylesheets and inline `<style>` blocks.
+
+### Fault injection — and the first attempt passing was the useful part
+
+Reintroducing the original defect (`--transition-duration-*` → `--duration-*` on
+`fast`/`base`/`slow`) **did not fail the check.** That was correct, and it taught
+me something: no markup in this repo uses `duration-fast`, `duration-base` or
+`duration-slow` as classes. Breaking a token nothing consumes produces no dead
+class, because there is no class.
+
+Breaking one markup actually depends on does:
+
+```
+FAIL  dead classes   194 distinct classes in built HTML   1 failure
+      DEAD CLASS "duration-spring-soft" — in the markup on 3 page(s)
+      (contact.html, index.html, styleguide.html), no rule in any stylesheet.
+```
+
+Exit 1; reverted; exit 0. A fault injection that passes is not a wasted injection
+— it tells you the check's reach, which is the thing you were guessing at.
+
+**Observed and kept:** `--transition-duration-base` and `--transition-duration-slow`
+are declared and consumed by nothing — no `var()`, no class. Not a defect and not
+removed, for the same reason the reference kept unused steps in its type ramp: a
+duration scale with `fast` and then a hole is worse than one with three named
+steps, two of them waiting for a project that needs them. Recorded so the next
+person does not mistake them for dead code.
+
+### §9 — the three axes, stated once
+
+The self-proof rules were accumulating one incident at a time. They are now one
+paragraph, because they are one idea: **a check can be wrong in three independent
+ways, each silent, each producing a green result.**
+
+| it can fail to… | how it failed here | the proof |
+| --- | --- | --- |
+| **execute** | the main-module guard compared a raw path to a percent-encoded URL; in any directory with a space, every check ran, printed nothing, exited 0 | `lib/main.mjs`, demonstrated from `…/spaced path check` |
+| **count** | a sweep deleted out of `/tmp` between runs, so `grep -c` read an empty stream and reported a clean pass over zero files | the EMPTY rule — a check reporting 0 assertions fails |
+| **measure the artifact under test** | a leaked preview daemon from another repo held the port; 77 sweep checks and 22 axe runs passed against somebody else's website | `lib/served.mjs` + `lib/preview.mjs`, both fault-injected |
+
+Three failure modes, three proofs, none substituting for another. All three have
+actually happened in this system, which is why the paragraph is written in the
+past tense rather than the conditional.
+
+### Final verification — the freeze numbers
+
+Identical from both paths, which is the point of running it twice:
+
+```
+                              canonical path        …/spaced path freeze
+  astro check                 0 errors, 0 warnings, 0 hints
+  contrast matrix             38 token pairs        floor 5.05:1
+  dead classes                194 classes           all resolve
+  JS census                   5 scripts             1,280 B gzipped
+  build contracts             21 assertions
+  overflow + structure        21 page/width checks  (3 pages × 7 widths)
+  axe-core                    6 page/width runs     0 violations
+
+  7 checks, 286 assertions executed                 §9 PASS
+```
+
+No preview daemon left behind by either run.
+
+**Lighthouse, mobile, behind `wrangler pages dev`** — and the gate now proves its
+referent too (`serving dist (22064 B on /)`):
+
+| page | performance | accessibility | best-practices | SEO |
+| --- | --- | --- | --- | --- |
+| `/` | **100** | **100** | **100** | **100** |
+| `/styleguide` | **100** | **100** | **100** | not audited — `noindex` by design |
+
+Standing caveat unchanged: **pre-CDN, on a developer machine.** A gate reading,
+not the production figure.
+
+### Shipped sizes at the freeze
+
+| | |
+| --- | --- |
+| CSS | 31,373 B raw, **7,476 B gzipped** — whole system, both themes |
+| JavaScript | **1,280 B gzipped across 4 scripts, zero `.js` files in `dist`** |
+| Dependencies | 3 runtime, 5 dev |
+| Whole `dist/` | ~260 KB |
+
+### The tally
+
+**Eleven defects found and fixed before a client project existed**, seven of them
+in code that had already passed a phase gate, and **three of them in the harness
+itself**:
+
+1. `--duration-*` is not a Tailwind namespace (live in the reference build).
+2. Lightning CSS deletes `linear()` from `@theme` for its hardcoded Safari 16.4 target.
+3. The documented two-declaration fallback is deduped away before it ships.
+4. An `as` prop discards a leaf component's entire `Props` type.
+5. The contact form enabled itself on an unconfigured build.
+6. The contract written to catch (5) asserted nothing — Tailwind's `disabled:`
+   classes made every control test as disabled.
+7. The styleguide broke the contrast rule in its own furniture, twice.
+8. No `robots.txt` — found by the Lighthouse gate on its first run.
+9. **Harness:** the main-module guard broke on any path containing a space.
+10. **Harness:** the runner leaked its preview daemon.
+11. **Harness:** nothing verified that a check was measuring the right artifact.
+
+Of these, exactly two were found by reading source. The rest came from grepping
+`dist`, screenshotting a page, or fault-injecting a check — which is the thesis
+the spec has been circling since §2: **the compiler's reality outranks the
+documentation in your head.**
+
+### Frozen
+
+Tagged **v1.0.0**. No client project scaffolded.
+
+**Template frozen for CentiPack.**

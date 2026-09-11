@@ -560,6 +560,20 @@ alongside the code it checks, and is never a scratch script in `/tmp`.
 checks is a failure.** A verification that cannot say how much it verified has
 not verified anything.
 
+**THE HARNESS MUST PROVE ITSELF ON THREE AXES, AND ALL THREE HAVE FAILED HERE.**
+A check can be wrong in three independent ways, each silent, each producing a
+green result: it can fail to **execute** (the main-module guard compared a raw
+path to a percent-encoded URL, so in any directory with a space every check ran,
+printed nothing and exited 0); it can execute but **count nothing** (a sweep
+deleted out of `/tmp` between runs, so `grep -c` read an empty stream and reported
+a clean pass over zero files); or it can execute and count correctly while
+**measuring the wrong artifact** (a leaked preview daemon from another repository
+held the port, and 77 page/width checks and 22 axe runs passed against somebody
+else's website). Three failure modes, three proofs — **it ran, it counted, it
+measured the thing under test** — and none of the three substitutes for another.
+Every rule below is one of those proofs, and each has been demonstrated by
+fault injection rather than asserted.
+
 **A harness that has never failed is a harness nobody has tested.** Every check
 must demonstrate its own failure mode once — fault-inject the thing it exists to
 catch, watch it fail with a legible message and a non-zero exit, restore — before

@@ -17,6 +17,7 @@ import { startPreview } from './lib/preview.mjs';
 import { contrast } from './contrast.mjs';
 import { contracts } from './contracts.mjs';
 import { jsCensus } from './js-census.mjs';
+import { utilities } from './utilities.mjs';
 import { sweep } from './sweep.mjs';
 import { axe } from './axe.mjs';
 
@@ -76,6 +77,7 @@ try {
 
   // --- static checks, straight off dist --------------------------------------
   results.push(contrast());
+  results.push(utilities());
   results.push(jsCensus());
   process.stdout.write(dim('  build contracts…             \r'));
   results.push(contracts());
