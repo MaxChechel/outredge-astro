@@ -20,6 +20,7 @@ import { jsCensus } from './js-census.mjs';
 import { utilities } from './utilities.mjs';
 import { sweep } from './sweep.mjs';
 import { axe } from './axe.mjs';
+import { keyboard } from './keyboard.mjs';
 
 const PORT = Number(process.env.PORT ?? 4321);
 /* The base URL and the wait-for-server loop moved into lib/preview.mjs, which
@@ -93,6 +94,8 @@ try {
 
   process.stdout.write(dim('  sweep (7 widths)…            \r'));
   results.push(await sweep());
+  process.stdout.write(dim('  keyboard…                    \r'));
+  results.push(await keyboard());
   process.stdout.write(dim('  axe-core…                    \r'));
   results.push(await axe());
 } finally {

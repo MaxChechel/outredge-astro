@@ -27,8 +27,8 @@
    never generated and the element is silently unstyled. Props must always map
    to complete, literal class strings:
 
-       const SIZE = { sm: 'text-sm', md: 'text-md' };   // scanner sees both
-       const SIZE = (s) => `text-${s}`;                 // scanner sees neither
+       const SIZE = { sm: 'text-sm', lg: 'text-large' };  // scanner sees both
+       const SIZE = (s) => `text-${s}`;                   // scanner sees neither
 
    This is the single most expensive mistake available in this codebase,
    because it fails silently and looks like a CSS bug.
@@ -336,9 +336,14 @@
 
    Every step is a clamp() interpolating between a 320px and a 1312px viewport, so
    type never jumps at a breakpoint. There are no media queries in the type system
-   at all. --text-h6 and --text-lede currently resolve to the same size, as do
-   --text-body-sm and --text-caption; they are declared separately so either can
-   move without dragging the other with it.
+   at all. --text-h6 and --text-large currently resolve to the same size, as do
+   --text-sm and --text-caption; they are declared separately so either can move
+   without dragging the other with it.
+
+   `--text-large` is the opening-paragraph step — what a print designer would call
+   a lede. It is named for its SIZE relative to body rather than for that job,
+   because the step gets used for pull quotes and standfirsts too, and a token
+   named for one of its uses makes the others read as misuse.
    ========================================================================== */
 
 :root {
@@ -349,9 +354,9 @@
   --text-h5: clamp(1.25rem, 1.1694rem + 0.4032vw, 1.5rem);        /* 20 → 24px */
   --text-h6: clamp(1.125rem, 1.0847rem + 0.2016vw, 1.25rem);      /* 18 → 20px */
 
-  --text-lede: clamp(1.125rem, 1.0847rem + 0.2016vw, 1.25rem);    /* 18 → 20px */
+  --text-large: clamp(1.125rem, 1.0847rem + 0.2016vw, 1.25rem);    /* 18 → 20px */
   --text-body: clamp(1rem, 0.9798rem + 0.1008vw, 1.0625rem);      /* 16 → 17px */
-  --text-body-sm: clamp(0.875rem, 0.8548rem + 0.1008vw, 0.9375rem); /* 14 → 15px */
+  --text-sm: clamp(0.875rem, 0.8548rem + 0.1008vw, 0.9375rem); /* 14 → 15px */
   --text-caption: clamp(0.875rem, 0.8548rem + 0.1008vw, 0.9375rem); /* 14 → 15px */
   --text-eyebrow: clamp(0.75rem, 0.7298rem + 0.1008vw, 0.8125rem);  /* 12 → 13px */
 }
@@ -462,6 +467,13 @@
   /* --- Derived roles -----------------------------------------------------
      Not new colours: named pointers at the tokens above, so a component never
      has to know that a focus ring happens to be the primary text colour. */
+  /* Tells the browser which way round this theme is, which is what makes the
+     NATIVE select popup, the scrollbars and the text caret match it. Without it
+     a dark section opens a white dropdown list — the one part of a <select> CSS
+     cannot reach, fixed by one declaration rather than by rebuilding the control
+     in JavaScript. */
+  color-scheme: light;
+
   --focus-ring: var(--text-primary);
   --selection-bg: var(--text-primary);
   --selection-text: var(--bg-base);
@@ -593,6 +605,8 @@
   --accent: var(--accent-300);       /* 5.37 : 1 on bg-surface */
   --accent-contrast: var(--gray-950);/* 7.12 : 1 on the accent fill */
 
+  color-scheme: dark;
+
   /* The scrim inverts: a dark veil over an already-dark ground is invisible. */
   --bg-scrim: color-mix(in oklab, var(--gray-1000) 72%, transparent);
 }
@@ -612,8 +626,11 @@
     background-color: var(--bg-base);
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
-    /* Anchor targets clear the fixed nav instead of hiding beneath it. */
-    scroll-padding-top: calc(var(--nav-height) + var(--spacing-md));
+    /* Anchor targets clear the fixed nav instead of hiding beneath it.
+       --sticky-offset is the total height of everything pinned to the top; a page
+       that stacks a second bar under the nav (the styleguide's index) raises it,
+       and every in-page link stays correct without touching this rule. */
+    scroll-padding-top: calc(var(--sticky-offset, var(--nav-height)) + var(--spacing-md));
   }
 
   body {
@@ -763,9 +780,9 @@
     letter-spacing: var(--tracking-normal);
   }
 
-  .text-lede,
+  .text-large,
   .text-body,
-  .text-body-sm,
+  .text-sm,
   .text-caption {
     font-weight: var(--font-weight-regular);
     line-height: var(--leading-body);
@@ -773,9 +790,9 @@
     text-wrap: pretty;
   }
 
-  .text-lede { font-size: var(--text-lede); }
+  .text-large { font-size: var(--text-large); }
   .text-body { font-size: var(--text-body); }
-  .text-body-sm { font-size: var(--text-body-sm); }
+  .text-sm { font-size: var(--text-sm); }
   .text-caption { font-size: var(--text-caption); }
 
   /* The small label above a section heading. Carries its own colour because an
@@ -860,7 +877,7 @@
     padding-left: var(--spacing-md);
     border-left: var(--border-width) solid var(--line);
     color: var(--text-primary);
-    font-size: var(--text-lede);
+    font-size: var(--text-large);
     line-height: var(--leading-snug);
   }
 
@@ -1228,23 +1245,60 @@
    Drawn in CSS: no icon asset, no inline SVG, and it inherits the text colour
    under any theme. */
 @layer components {
+  /* The arrow sits in its own well at the trailing edge, separated by a hairline
+     — which is what makes a <select> read as "this opens" rather than as a text
+     input that happens to have a mark in the corner. Drawn in CSS: no asset, and
+     it follows the theme. */
+  .select-wrap {
+    display: block;
+  }
+
   .select-icon {
     position: absolute;
-    top: 50%;
-    right: var(--spacing-sm);
+    inset-block: var(--border-width);
+    inset-inline-end: var(--border-width);
+    display: grid;
+    place-items: center;
+    width: var(--spacing-control-md);
+    border-inline-start: var(--border-width) solid var(--line);
+    border-start-end-radius: var(--radius-sm);
+    border-end-end-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    pointer-events: none;
+    transition:
+      color var(--transition-duration-spring-soft) var(--ease-spring-soft),
+      border-color var(--transition-duration-spring-soft) var(--ease-spring-soft),
+      background-color var(--transition-duration-spring-soft) var(--ease-spring-soft);
+  }
+
+  .select-icon::after {
+    content: '';
     width: 0.5rem;
     height: 0.5rem;
-    border-right: var(--border-width) solid currentcolor;
-    border-bottom: var(--border-width) solid currentcolor;
-    transform: translateY(-70%) rotate(45deg);
-    pointer-events: none;
+    border-right: 1.5px solid currentcolor;
+    border-bottom: 1.5px solid currentcolor;
+    border-end-end-radius: 1px;
+    transform: translateY(-25%) rotate(45deg);
   }
 
   /* The arrow picks up the accent when the control does, so the whole control
      responds as one thing rather than the border moving on its own. */
   .select-wrap:has(select:not(:disabled):hover) .select-icon,
   .select-wrap:has(select:focus-visible) .select-icon {
+    border-inline-start-color: var(--accent);
+    background-color: var(--bg-subtle);
     color: var(--accent);
+  }
+
+  .select-wrap:has(select:disabled) .select-icon {
+    opacity: 0.5;
+  }
+
+  /* The open list is the browser's, but its type is ours where the platform
+     allows it. */
+  .select-wrap select option {
+    background-color: var(--bg-surface);
+    color: var(--text-primary);
   }
 
   /* A select showing its placeholder reads as a placeholder. */
@@ -1380,16 +1434,24 @@
    open transition therefore runs everywhere, rather than only in browsers new
    enough for the fashionable syntax. */
 @layer components {
+  /* THE PANEL IS FULL-BLEED, positioned against the <header> rather than against
+     its own <li>. The header is `sticky`, which makes it a positioned ancestor
+     and therefore the containing block — so `inset-inline: 0` spans the viewport
+     while the container-main INSIDE the panel puts its columns on the same gutter
+     line as the logo above and every section heading below. A panel that
+     re-derived its own padding would be a third gutter on the page. */
   .nav-panel {
     position: absolute;
-    top: calc(100% + var(--spacing-sm));
-    left: 0;
+    inset-inline: 0;
+    top: 100%;
     z-index: 50;
-    width: max-content;
-    max-width: min(24rem, calc(100vw - var(--site-margin) * 2));
+    max-height: calc(100svh - var(--nav-height));
+    overflow-y: auto;
+    border-block-end: var(--border-width) solid var(--line);
+    background-color: var(--bg-base);
     visibility: hidden;
     opacity: 0;
-    transform: translateY(-0.25rem);
+    transform: translateY(-0.5rem);
     transition:
       opacity var(--transition-duration-spring-soft) var(--ease-spring-soft),
       transform var(--transition-duration-spring-soft) var(--ease-spring-soft),

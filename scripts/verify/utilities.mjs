@@ -125,7 +125,13 @@ export function utilities() {
     notes.push('    It styles nothing. Either the utility never generated (check the token namespace against Tailwind, not against memory), or the class is a leftover.');
   }
 
-  notes.push(`${used.size} distinct classes reach the browser; all resolve to a rule.`);
+  /* Report what was found, not what was hoped for — a failing run that also
+     prints "all resolve to a rule" teaches the reader to skim the summary. */
+  notes.push(
+    failures === 0
+      ? `${used.size} distinct classes reach the browser; all resolve to a rule.`
+      : `${used.size} distinct classes reach the browser; ${failures} resolve to nothing.`,
+  );
   if (declared.length) {
     notes.push(`${declared.length} declared unstyled by design: ${declared.sort().join(', ')}`);
   }

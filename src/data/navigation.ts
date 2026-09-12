@@ -9,34 +9,68 @@
 export interface NavLink {
   href: string;
   label: string;
-  /** Short description, shown in a dropdown panel where there is room for it. */
+  /** Shown under the label in a mega-menu panel, where there is room for it. */
   description?: string;
+}
+
+/**
+ * One column of a mega-menu panel. The `title` is a real heading in the panel's
+ * outline, not a styled label — a panel of thirty links with no headings is a
+ * list a screen-reader user has to read end to end to navigate.
+ */
+export interface NavColumn {
+  title: string;
+  links: readonly NavLink[];
 }
 
 export interface NavGroup {
   /** The disclosure trigger's label. */
   label: string;
-  /** Stable id — the trigger and the panel are wired together by it. */
+  /** Stable id — the trigger, the panel and `aria-controls` are wired by it. */
   id: string;
-  links: readonly NavLink[];
+  columns: readonly NavColumn[];
 }
 
 export type NavItem = NavLink | NavGroup;
 
-export const isGroup = (item: NavItem): item is NavGroup => 'links' in item;
+export const isGroup = (item: NavItem): item is NavGroup => 'columns' in item;
 
+/**
+ * The bar is deliberately short. A nav is a set of promises about where the site
+ * goes, and a starter that ships five placeholder promises teaches whoever copies
+ * it to keep them.
+ */
 export const navigation: readonly NavItem[] = [
-  { href: '/', label: 'Home' },
   {
-    label: 'Resources',
-    id: 'nav-resources',
-    links: [
-      { href: '/styleguide', label: 'Styleguide', description: 'Every token and component, annotated.' },
-      { href: '/#pattern', label: 'Patterns', description: 'The card recipe and the layout rules.' },
-      { href: '/#motion', label: 'Motion', description: 'Spring tokens and the reduced-motion contract.' },
+    label: 'The system',
+    id: 'nav-system',
+    columns: [
+      {
+        title: 'Foundations',
+        links: [
+          { href: '/styleguide#color', label: 'Colour tokens', description: 'Semantic layer, both themes, verified.' },
+          { href: '/styleguide#type', label: 'Type scale', description: 'Role-named, fluid, breakpointless.' },
+          { href: '/styleguide#spacing', label: 'Spacing scale', description: 'T-shirt names, 2px to 12rem.' },
+        ],
+      },
+      {
+        title: 'Composition',
+        links: [
+          { href: '/styleguide#layout', label: 'Layout & gutters', description: 'One site margin, one container.' },
+          { href: '/styleguide#section', label: 'Section', description: 'The only page-level parent.' },
+          { href: '/styleguide#blocks', label: 'The card pattern', description: 'A recipe, not a component.' },
+        ],
+      },
+      {
+        title: 'Behaviour',
+        links: [
+          { href: '/styleguide#atoms', label: 'Form controls', description: 'Native, token-styled, zero JS.' },
+          { href: '/styleguide#nav', label: 'Disclosures', description: 'Never hover-only.' },
+          { href: '/styleguide#motion', label: 'Motion', description: 'Springs, free, compositor-driven.' },
+        ],
+      },
     ],
   },
-  { href: '/#about', label: 'About' },
 ];
 
 /** The footer's own list. Flat by definition — a footer has no disclosures. */
@@ -46,9 +80,6 @@ export const footerLinks: readonly NavLink[] = [
   { href: '/contact', label: 'Contact' },
 ];
 
-export const site = {
-  /** PROJECT: replace. */
-  name: 'outredge-system',
-  description: 'The Outredge dev system for Astro marketing sites.',
-  contactHref: '/contact',
-} as const;
+/* Site identity lives in src/consts.ts — one module, consumed by BaseLayout,
+   urls.ts, robots.txt and sitemap.xml. This file is about links. */
+export { SITE as site } from '../consts';

@@ -21,10 +21,15 @@ interface Props {
 }
 
 const { label, logos, class: className, ...rest } = Astro.props as Props;
+
+/* SELF-SKIP (§4.2). A label introducing an empty row of marks is a heading with
+   nothing under it — the same outline defect the label-is-a-<p> ruling avoided. */
+const hasContent = logos.length > 0;
 ---
 
+{hasContent && (
 <div class:list={['flex flex-col gap-md', className]} {...rest}>
-  <p class="text-body-sm text-tertiary">{label}</p>
+  <p class="text-sm text-tertiary">{label}</p>
   <ul class="logo-strip list-bare grid grid-cols-3 items-center gap-x-lg gap-y-md text-secondary">
     {
       logos.map(({ name, slug }) => (
@@ -35,3 +40,4 @@ const { label, logos, class: className, ...rest } = Astro.props as Props;
     }
   </ul>
 </div>
+)}

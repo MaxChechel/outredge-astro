@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
 import { canonicalPath } from '../lib/urls';
+import { isNoindexed } from '../consts';
 
 /**
  * /sitemap.xml (§8).
@@ -32,6 +33,10 @@ const staticPaths = Object.keys(pageModules)
   // 404 is a route the crawler should find by getting a 404, not by being told.
   .filter((name) => name !== '404')
   .map((name) => (name === 'index' ? '/' : `/${name.replace(/\/index$/, '')}`))
+  /* The same list BaseLayout emits the robots meta from. A page told not to be
+     indexed and then listed in the sitemap is a page giving a crawler two
+     contradictory instructions. */
+  .filter((path) => !isNoindexed(path))
   .sort();
 
 export const GET: APIRoute = ({ site }) => {

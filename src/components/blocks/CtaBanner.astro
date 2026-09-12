@@ -38,8 +38,13 @@ const {
   id,
   class: className,
 } = Astro.props as Props;
+
+/* SELF-SKIP (§4.2). A banner with no heading and no action is a bordered empty
+   box; render nothing instead. */
+const hasContent = Boolean(heading) || Boolean(body) || Boolean(primary) || Boolean(secondary);
 ---
 
+{hasContent && (
 <div
   id={id}
   data-theme={theme}
@@ -52,7 +57,7 @@ const {
   <div class="gap-sm flex flex-col items-center">
     {eyebrow && <p class="text-eyebrow">{eyebrow}</p>}
     {headingLevel === 'h3' ? <h3 class="text-h2">{heading}</h3> : <h2 class="text-h2">{heading}</h2>}
-    {body && <p class="text-lede text-secondary measure">{body}</p>}
+    {body && <p class="text-large text-secondary measure">{body}</p>}
   </div>
 
   {
@@ -72,3 +77,4 @@ const {
     )
   }
 </div>
+)}

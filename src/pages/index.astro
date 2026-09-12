@@ -2,24 +2,29 @@
 /**
  * Home — the starter's own front page.
  *
- * Kept deliberately thin. It exists to show the page grammar (§4.4) with nothing
- * else in the way: a stack of Sections, atoms and blocks inside, no spacing
- * decisions, no containers, no spacer divs. A client project replaces it.
+ * Kept deliberately thin, and thinner than it was. It exists to show the page
+ * grammar (§4.4) with nothing else in the way: a stack of Sections, atoms and
+ * blocks inside, no spacing decisions, no containers, no spacer divs.
+ *
+ * There is no "about this repo" section, because there was nothing here a
+ * client project would keep — a starter's placeholder prose is prose the next
+ * person has to notice and delete, and half of them will not. What the repo is
+ * belongs in README.md, which is where someone looks for it. A page that exists
+ * to demonstrate the grammar should contain the grammar and little else.
  */
 import BaseLayout from '../components/shells/BaseLayout.astro';
 import Section from '../components/Section.astro';
 import SectionHeader from '../components/blocks/SectionHeader.astro';
 import Button from '../components/atoms/Button.astro';
-import TextLink from '../components/atoms/TextLink.astro';
 import CtaBanner from '../components/blocks/CtaBanner.astro';
 import ItemCard from '../components/blocks/ItemCard.astro';
 import { getItems } from '../lib/items';
-import { site } from '../data/navigation';
+import { SITE } from '../consts';
 
 const items = await getItems();
 ---
 
-<BaseLayout title={`${site.name} — the Astro starter`} description={site.description}>
+<BaseLayout title={`${SITE.name} — the Astro starter`} description={SITE.description}>
   <Section spaceTop="nav" spaceBottom="lg">
     <div class="gap-lg flex flex-col items-start">
       <SectionHeader
@@ -32,7 +37,7 @@ const items = await getItems();
       />
       <div class="gap-sm flex flex-wrap">
         <Button href="/styleguide" variant="primary" icon="arrow">Open the styleguide</Button>
-        <Button href="#pattern" variant="secondary">The card pattern</Button>
+        <Button href="/contact" variant="secondary">Contact</Button>
       </div>
     </div>
   </Section>
@@ -48,23 +53,6 @@ const items = await getItems();
       <div class="gap-md grid sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => <ItemCard item={item} />)}
       </div>
-    </div>
-  </Section>
-
-  <Section id="about" space="lg" width="narrow">
-    <div class="prose">
-      <h2>What this repo is</h2>
-      <p>
-        The reference implementation of the Outredge dev system for Astro marketing sites. Client projects begin
-        as a copy of it: replace the primitive ramp and the accent with the brand's values, run{' '}
-        <code>npm run verify</code> — the contrast matrix is what says whether the rebrand is shippable — then
-        replace the fonts, the logo and the collections.
-      </p>
-      <p>
-        The rules live in <TextLink href="https://github.com">ARCHITECTURE.md</TextLink>, and{' '}
-        <code>src/styles/global.css</code> is the single source of truth for every token. Each layer there opens
-        with its rule and the trap that rule exists to avoid.
-      </p>
     </div>
   </Section>
 

@@ -58,6 +58,7 @@ real output:
 | dead classes | every class that reaches the browser resolves to a rule, matching built HTML against built CSS. A class that styles nothing fails the run |
 | JS census | every script in `dist` is named, justified and inside its gzipped budget. An undeclared one fails the run |
 | overflow + structure | no horizontal overflow at 320/360/390/430/768/1024/1440, exactly one `h1`, zero heading skips, every image with dimensions and a non-null alt |
+| keyboard | real Tab presses: every enabled control reachable, every focus visible, no ARIA impostors |
 | axe-core | wcag2a/aa, 21a/aa, 22aa and best-practice, at 390 and 1440, zero violations |
 | build contracts | rules the compiler cannot enforce, asserted against the built HTML and source: a form with no configured endpoint ships disabled, `as` is reserved for Section, a production build emits no styleguide route |
 
@@ -114,16 +115,20 @@ Work top to bottom. **Run `npm run verify` after step 3 and again at the end**;
 the contrast matrix is what tells you whether the rebrand is shippable, and it
 tells you by name.
 
-### 1. Copy the template
+### 1. Copy the template, then edit `src/consts.ts`
 
 ```bash
 git clone <this repo> client-name && cd client-name
 rm -rf .git && git init
 ```
 
-Then in `package.json` set `name`, and in `astro.config.mjs` set `site` to the
-real production URL. **`site` is required** — canonical URLs, `og:url` and the
-sitemap are all built from it.
+**Edit `src/consts.ts` first, before anything else.** It holds everything that is
+true about the site rather than about the system — name, description, canonical
+origin, locale, noindexed routes — and `BaseLayout`, `src/lib/urls.ts`,
+`robots.txt`, `sitemap.xml` and `astro.config.mjs` all read it. One file, so a
+staging origin cannot survive into a production canonical tag.
+
+Then set `name` in `package.json`.
 
 ### 2. Replace the primitives
 
@@ -231,6 +236,8 @@ config. **100/100/100/100 is the bar**, and the numbers get recorded.
 
 ```
 ARCHITECTURE.md          the rules. Law.
+AGENTS.md                the agent operating contract (CLAUDE.md symlinks to it)
+src/consts.ts            site identity — the first file a new project edits
 WORKLOG.md               append-only: decisions, reasoning, bugs with root cause
 src/styles/global.css    the single source of truth for every token.
                          In this repo it is also documentation — every layer

@@ -118,9 +118,9 @@ const TYPE_ROLES = [
   { token: '--text-h4', style: 'text-h4', note: '24 → 30px', sample: 'Heading four' },
   { token: '--text-h5', style: 'text-h5', note: '20 → 24px', sample: 'Heading five' },
   { token: '--text-h6', style: 'text-h6', note: '18 → 20px', sample: 'Heading six' },
-  { token: '--text-lede', style: 'text-lede', note: '18 → 20px', sample: 'Lede — the opening paragraph.' },
+  { token: '--text-large', style: 'text-large', note: '18 → 20px', sample: 'Lede — the opening paragraph.' },
   { token: '--text-body', style: 'text-body', note: '16 → 17px', sample: 'Body — the default reading size.' },
-  { token: '--text-body-sm', style: 'text-body-sm', note: '14 → 15px', sample: 'Small body — dense UI copy.' },
+  { token: '--text-sm', style: 'text-sm', note: '14 → 15px', sample: 'Small body — dense UI copy.' },
   { token: '--text-caption', style: 'text-caption', note: '14 → 15px', sample: 'Caption — figure captions, meta.' },
   { token: '--text-eyebrow', style: 'text-eyebrow', note: '12 → 13px', sample: 'Eyebrow label' },
 ];
@@ -192,33 +192,46 @@ const INDEX = [
   <!-- ===================================================================
        HEADER
        =================================================================== -->
-  <Section as="header" spaceTop="nav" spaceBottom="sm">
-    <div class="gap-md flex flex-col">
-      <div class="gap-md flex flex-wrap items-baseline justify-between">
-        <div class="gap-3xs flex flex-col">
-          <h1 class="text-h2">Styleguide</h1>
+  <Section as="header" spaceTop="nav" spaceBottom="lg">
+    <div class="gap-2xl flex flex-col">
+      <div class="gap-md flex flex-wrap items-end justify-between">
+        <div class="gap-sm flex flex-col">
+          <h1 class="text-h1">Styleguide</h1>
           <p class="sg-meta">outredge-system · internal · env-gated out of production builds</p>
         </div>
         <p class="sg-meta">
           contrast matrix: {text.length}/{text.length - textFailures} passing at {AA}:1
         </p>
       </div>
-
-      <nav aria-label="Styleguide sections">
-        <ul class="list-bare gap-x-md gap-y-2xs flex flex-wrap">
-          {
-            INDEX.map(([num, id, label]) => (
-              <li>
-                <a href={`#${id}`} class="sg-index-link">
-                  <span class="sg-mono">{num}</span> {label}
-                </a>
-              </li>
-            ))
-          }
-        </ul>
-      </nav>
     </div>
   </Section>
+
+  <!-- ===================================================================
+       INDEX — sticks under the nav once it reaches it.
+
+       A full-bleed band rather than something inside the header Section: a
+       `sticky` element only sticks within its own parent, so an index nested in
+       a short header would scroll away with it. As a direct child of <main> its
+       parent is the whole page, which is the length it needs to stay put for.
+
+       `top-nav` is the nav's own height token, so the two bars meet exactly and
+       keep meeting if the nav height ever changes.
+       =================================================================== -->
+  <div class="border-line bg-surface top-nav sticky z-30 border-b">
+    <nav aria-label="Styleguide sections" class="container-main py-sm">
+      <ul class="list-bare gap-x-md gap-y-2xs flex flex-wrap">
+        {
+          INDEX.map(([num, id, label]) => (
+            <li>
+              <a href={`#${id}`} class="sg-index-link">
+                <span class="sg-mono">{num}</span> {label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
 
   <!-- ===================================================================
        01 COLOUR
@@ -404,7 +417,7 @@ const INDEX = [
 
       <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
         <h3 class="text-h6 text-primary">Size is still decoupled from level</h3>
-        <p class="text-body-sm text-secondary measure">
+        <p class="text-sm text-secondary measure">
           Naming the tokens for their roles does not re-couple them: the decoupling lives in the CLASS, which any
           element may wear. An <span class="sg-mono">&lt;h2 class="text-h4"&gt;</span> is correct and ordinary —
           the outline is a semantics decision, the size is a design one, and a component takes the level as a prop
@@ -519,7 +532,7 @@ const INDEX = [
     <div class="container-main mt-lg">
       <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
         <h3 class="text-h6 text-primary">The boundary below Section</h3>
-        <ul class="list-bare gap-3xs text-body-sm text-secondary flex flex-col">
+        <ul class="list-bare gap-3xs text-sm text-secondary flex flex-col">
           <li>— no <code>max-w-container-*</code>: the token is outside <code>@theme</code>, so the utility does not exist.</li>
           <li>— no <code>px-*</code> recreating gutters: <code>--site-margin</code> is applied once, by the container.</li>
           <li>— no <code>py-*</code> recreating section rhythm: that is <code>space</code>.</li>
@@ -608,7 +621,7 @@ const INDEX = [
       <div class="gap-md grid md:grid-cols-3">
         <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border md:col-span-1">
           <p class="text-h6 text-primary">Surface card</p>
-          <p class="text-body-sm text-secondary">Supporting copy, secondary.</p>
+          <p class="text-sm text-secondary">Supporting copy, secondary.</p>
           <p class="text-caption text-tertiary">Tertiary meta — the tightest pair in the whole matrix, 5.05:1.</p>
         </div>
         <div class="gap-sm md:col-span-2 flex flex-wrap items-start">
@@ -679,7 +692,7 @@ const INDEX = [
            ============================================================ -->
       <div class="gap-md flex flex-col">
         <h3 class="text-h5 text-primary">Form controls</h3>
-        <p class="text-body-sm text-secondary measure">
+        <p class="text-sm text-secondary measure">
           Five control types, one component. What is shared is not the control — it is the label wiring, the error
           slot, the <span class="sg-mono">aria-invalid</span>/<span class="sg-mono">aria-describedby</span> pair
           and the disabled state. Five components would re-implement that five times and drift four ways.
@@ -729,7 +742,7 @@ const INDEX = [
                 />
 
                 <fieldset class="field-group gap-sm flex flex-col">
-                  <legend class="text-body-sm text-secondary mb-xs">How would you like to work?</legend>
+                  <legend class="text-sm text-secondary mb-xs">How would you like to work?</legend>
                   <FormField
                     type="radio"
                     name={`sg-${state.key}-engagement`}
@@ -787,7 +800,7 @@ const INDEX = [
                 options={BUDGETS}
               />
               <fieldset class="field-group gap-sm flex flex-col">
-                <legend class="text-body-sm text-secondary mb-xs">How would you like to work?</legend>
+                <legend class="text-sm text-secondary mb-xs">How would you like to work?</legend>
                 <FormField type="radio" name="sg-dark-engagement" value="project" label="A one-off project" checked />
                 <FormField type="radio" name="sg-dark-engagement" value="retainer" label="An ongoing retainer" />
               </fieldset>
@@ -810,14 +823,14 @@ const INDEX = [
 
         <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
           <h4 class="text-h6 text-primary">A radio group is a pattern, not a component</h4>
-          <p class="text-body-sm text-secondary measure">
+          <p class="text-sm text-secondary measure">
             The groups above are a <span class="sg-mono">&lt;fieldset&gt;</span> with a
             <span class="sg-mono">&lt;legend&gt;</span> — which is what a screen reader announces before each
             option, and what no component can supply without also owning how the options are laid out. The first
             design that wants them in two columns would fork it.
           </p>
           <pre class="sg-code" tabindex="0"><code>{`<fieldset class="field-group flex flex-col gap-sm">
-  <legend class="text-body-sm text-secondary mb-xs">Engagement</legend>
+  <legend class="text-sm text-secondary mb-xs">Engagement</legend>
   <FormField type="radio" name="engagement" value="project"  label="One-off project" />
   <FormField type="radio" name="engagement" value="retainer" label="Retainer" />
 </fieldset>`}</code></pre>
@@ -838,13 +851,13 @@ const INDEX = [
         </div>
         <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
           <p class="sg-meta">VisuallyHidden — present, announced, not painted.</p>
-          <p class="text-body-sm text-secondary">
+          <p class="text-sm text-secondary">
             Read more<VisuallyHidden> about the demo collection</VisuallyHidden>
           </p>
         </div>
         <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
           <p class="sg-meta">JsonLd — emitted into this page, renders nothing.</p>
-          <p class="text-body-sm text-secondary">Data, not script. Excluded from the JS census by type.</p>
+          <p class="text-sm text-secondary">Data, not script. Excluded from the JS census by type.</p>
           <JsonLd schema={{ '@context': 'https://schema.org', '@type': 'WebPage', name: 'Styleguide' }} />
         </div>
       </div>
@@ -865,12 +878,12 @@ const INDEX = [
 
       <div class="bg-surface border-line p-md gap-sm flex flex-col rounded-md border">
         <h3 class="text-h5 text-primary">The card pattern</h3>
-        <p class="text-body-sm text-secondary measure">
+        <p class="text-sm text-secondary measure">
           A card is a <strong class="text-primary">pattern, not a component</strong>. There is no generic Card
           shell and no card family in the base kit. The recipe is:
         </p>
         <pre class="sg-code" tabindex="0"><code>bg-surface + border-line + rounded-md + p-sm | p-md</code></pre>
-        <p class="text-body-sm text-secondary measure">
+        <p class="text-sm text-secondary measure">
           Project cards — ProductCard, WorkCard, PricingCard — are instantiations of it. They never invent their
           own surface, border or radius treatment; if one needs a different treatment, that is a token decision
           made in global.css where every card gets it. They share no structure, so a common parent would be a
@@ -885,6 +898,29 @@ const INDEX = [
       <div class="gap-2xs flex flex-col">
         <p class="sg-meta">Faq — native &lt;details&gt;, spring-eased through ::details-content, zero JS.</p>
         <Faq items={faqItems} headingLevel="h4" />
+      </div>
+
+      <!-- SELF-SKIP (§4.2). Both of these are rendered. Neither appears on the
+           page, because neither has anything to show: the SectionHeader has no
+           heading, eyebrow or lede, and the LogoStrip has no marks. A CMS-shaped
+           schema has optional fields, and an optional field left empty must not
+           leave a bordered empty box or a heading with nothing under it. The
+           guard lives in the block because the block is the only thing that knows
+           what "empty" means for it — the alternative is every page guarding every
+           block at the call site, which is where it gets forgotten. -->
+      <SectionHeader heading="" />
+      <LogoStrip label="Trusted by" logos={[]} />
+
+      <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
+        <h3 class="text-h6 text-primary">Two blocks were rendered directly above this</h3>
+        <p class="text-sm text-secondary measure">
+          An empty <span class="sg-mono">&lt;SectionHeader&gt;</span> and a
+          <span class="sg-mono">&lt;LogoStrip&gt;</span> with no marks. Neither produced any markup — view source
+          and there is nothing between this card and the one before it. Absent and broken stay different: a
+          <span class="sg-mono">&lt;Figure&gt;</span> with no <span class="sg-mono">src</span> renders nothing,
+          while one whose <span class="sg-mono">src</span> does not resolve is still a build error.
+        </p>
+        <p class="sg-meta">Pattern adapted from lumos-for-astro.</p>
       </div>
 
       <div class="gap-2xs flex flex-col">
@@ -922,11 +958,11 @@ const INDEX = [
       />
 
       <div class="bg-surface border-line p-md gap-sm flex flex-col rounded-md border">
-        <p class="text-body-sm text-secondary measure">
+        <p class="text-sm text-secondary measure">
           The live one is in the nav at the top of this page — open{' '}
           <strong class="text-primary">Resources</strong> and try each of these:
         </p>
-        <ul class="list-bare gap-3xs text-body-sm text-secondary flex flex-col">
+        <ul class="list-bare gap-3xs text-sm text-secondary flex flex-col">
           <li>— <kbd class="sg-kbd">Esc</kbd> closes it <em>and returns focus to the trigger</em>. That second half is the one usually missing.</li>
           <li>— a pointer press outside closes it.</li>
           <li>— <kbd class="sg-kbd">Tab</kbd> out of the group closes it, so focus cannot strand an open panel behind you.</li>
@@ -972,7 +1008,7 @@ const INDEX = [
 
         <div class="bg-surface border-line p-md gap-sm flex flex-col rounded-md border">
           <h3 class="text-h6 text-primary">Scroll reveal — opt-in per Section</h3>
-          <p class="text-body-sm text-secondary">
+          <p class="text-sm text-secondary">
             This Section carries <span class="sg-mono">reveal</span>, which sets{' '}
             <span class="sg-mono">data-reveal-group</span> on its container. Default off: a page where everything
             animates in has no emphasis left to spend.
@@ -988,7 +1024,7 @@ const INDEX = [
 
       <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
         <h3 class="text-h6 text-primary">The reduced-motion contract</h3>
-        <ul class="list-bare gap-3xs text-body-sm text-secondary flex flex-col">
+        <ul class="list-bare gap-3xs text-sm text-secondary flex flex-col">
           <li>— reveals render their content <strong class="text-primary">visible, with no animation</strong> — never hidden;</li>
           <li>— transitions collapse to near-instant rather than being removed, so state changes still read as changes;</li>
           <li>— nothing autoplays;</li>
@@ -1019,7 +1055,7 @@ const INDEX = [
 
       <div class="bg-surface border-line p-md gap-xs flex flex-col rounded-md border">
         <h3 class="text-h6 text-primary">That was a real MDX body</h3>
-        <p class="text-body-sm text-secondary measure">
+        <p class="text-sm text-secondary measure">
           Rendered from <span class="sg-mono">src/content/items/item-one.mdx</span> through the adapter, with
           <span class="sg-mono">&lt;Content components=&#123;vocabulary&#125; /&gt;</span>. Passing that map is what
           closes the approved list: a body can only reach a component someone deliberately put in
@@ -1096,6 +1132,12 @@ image: {
 
      Plain CSS against the global custom properties — no Tailwind utilities, so
      nothing here can drift into the production bundle. */
+
+  /* Two bars are pinned on this page, so anchor targets have to clear both.
+     The base rule reads --sticky-offset; this page is what raises it. */
+  :global(html) {
+    --sticky-offset: calc(var(--nav-height) + 3rem);
+  }
 
   .sg-mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

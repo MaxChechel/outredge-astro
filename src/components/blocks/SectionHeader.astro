@@ -2,6 +2,11 @@
 /**
  * Eyebrow + heading + lede (§4.2).
  *
+ * `lede` is the EDITORIAL slot — the standfirst under a section heading. It is
+ * rendered at `--text-large`, which is named for its size rather than for this
+ * job because the same step carries pull quotes and standfirsts elsewhere, and a
+ * token named for one of its uses makes the others read as misuse.
+ *
  * HEADING LEVEL IS A PROP, and it is independent of the visual size. The same
  * block renders an <h2> at the top of a page and an <h3> inside a subsection
  * with no change to how it looks — which is the entire reason the type scale is
@@ -54,8 +59,13 @@ const headingClass = SIZE[size];
 
 /* A lede supplied as a slot wins over the prop, for copy that needs markup. */
 const hasLede = Boolean(lede) || Astro.slots.has('lede');
+
+/* SELF-SKIP (§4.2). With no heading and nothing else to show, this renders
+   nothing at all — not an empty wrapper. See the rule in ARCHITECTURE §4.2. */
+const hasContent = Boolean(heading) || Boolean(eyebrow) || hasLede;
 ---
 
+{hasContent && (
 <div
   id={id}
   class:list={[
@@ -74,9 +84,10 @@ const hasLede = Boolean(lede) || Astro.slots.has('lede');
 
   {
     hasLede && (
-      <p class:list={['text-lede text-secondary measure', split && 'md:col-span-5']}>
+      <p class:list={['text-large text-secondary measure', split && 'md:col-span-5']}>
         <slot name="lede">{lede}</slot>
       </p>
     )
   }
 </div>
+)}

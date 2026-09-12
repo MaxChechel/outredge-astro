@@ -1311,3 +1311,161 @@ No preview daemon left behind by either run. **JavaScript unchanged at 1,280 B
 gzipped** — three new control types, zero new bytes.
 
 **Re-frozen. Tagged v1.1.0. No client project scaffolded.**
+
+---
+
+## 2026-09-12 — Entry 11. Review round: naming, mega menu, form UX, agent contract
+
+Un-frozen for a review batch from Max (annotated screenshots) plus a three-item
+addendum. Lands under the same tag, v1.1.0.
+
+### Type scale renamed again — `lede` → `large`, `body-sm` → `sm`
+
+`--text-lede` is now `--text-large`, `--text-body-sm` is now `--text-sm`. 51 uses
+across 13 files. Values unchanged.
+
+The reasoning worth keeping: `--text-large` is the opening-paragraph step — what a
+print designer calls a lede — but the same step carries pull quotes and
+standfirsts, and **a token named for one of its uses makes the others read as
+misuse.** `SectionHeader`'s `lede` prop keeps its name: that one really is the
+editorial slot, and it renders at `--text-large`.
+
+`.text-sm` is a class a developer arriving from stock Tailwind would type
+expecting ~14px, and gets 14→15px. The name now matches the muscle memory.
+
+### The mega menu, which had never actually been built
+
+Amendment 10 specified "a grid aligned to the container gutters". What shipped
+through three phase gates was a 24rem card anchored to its own `<li>` — a
+dropdown, not a mega menu. Now:
+
+- **the panel is full-bleed, positioned against the `<header>`**, which `sticky`
+  makes the containing block, with `container-main` INSIDE it;
+- three columns, each with a real heading, links carrying descriptions;
+- on mobile the same columns fold into the `<details>` menu as labelled
+  sub-lists, still zero JS.
+
+**Measured, because "aligned" is a claim:** the panel's first column, the sticky
+index's first item and section 01's heading all start at **x = 104** at 1440px.
+That is the container primitive being implemented once doing the work it was
+implemented once to do.
+
+Nav cleaned to logo · The system ▾ · Contact. Home and About were placeholder
+promises, and a starter that ships five of them teaches whoever copies it to keep
+them.
+
+### Form UX
+
+- **`color-scheme` per theme.** One declaration, and the NATIVE select popup,
+  scrollbars and text caret follow the theme. It is the one part of a `<select>`
+  CSS cannot reach, and the alternative is rebuilding the control in JavaScript.
+- **The select arrow moved into its own well** at the trailing edge, separated by
+  a hairline, tinting on hover and focus. A chevron loose in the corner reads as a
+  text input with a mark; a well reads as "this opens".
+- **Controls got a real height** (`min-h-control-md`, 3rem) instead of padding
+  around a line box — matching the Button, so a form and its submit read as one
+  set of controls rather than two.
+
+### Keyboard operability is now a check, not a claim
+
+Verified with real CDP key events rather than `.focus()`, which does not trigger
+`:focus-visible` and would report a passing ring a keyboard user never sees:
+
+```
+  Tab      → all 10 contact controls, each with a 2px visible ring
+  ArrowDown/Up inside the radio group → moves and re-checks, one tab stop
+  Space    → toggles the checkbox
+```
+
+That is the argument for native elements, so it became `scripts/verify/keyboard.mjs`:
+every enabled control reachable by Tab, every focused control painting a ring
+(2.4.7), and no element wearing an interactive ARIA role a native element already
+provides. **axe cannot press Tab**; this is the half it does not cover.
+
+**One assertion was written, fault-injected, and then deleted.** The first draft
+asserted "a radio group is one tab stop". No injected fault could make it fail —
+explicit `tabindex="0"` on every radio does not break Chrome's roving, because a
+native group cannot misbehave. By §9's own rule a check whose red path cannot be
+reached does not count, so it was replaced with the ARIA-impostor assertion, which
+can fail and did:
+
+| injected fault | result |
+| --- | --- |
+| `:focus-visible { outline: none }` | 19 controls took focus with no ring, exit 1 |
+| `tabindex="-1"` on the toggle | Tab reached 10 of 19 expected stops, exit 1 |
+| `<div role="checkbox">` on the page | named, with the reason a role buys announcement and nothing else, exit 1 |
+
+### Fluff removed
+
+The home page's "What this repo is" prose section is gone. **A starter's
+placeholder prose is prose the next person has to notice and delete, and half of
+them will not.** What the repo is belongs in README.md, which is where someone
+looks for it.
+
+### Addendum
+
+**`AGENTS.md`, with `CLAUDE.md` symlinked to it.** Under a page, pointing rather
+than duplicating: the spec is law, `npm run verify` must pass and is never
+weakened to pass, phase gates are closed by the human, WORKLOG is append-only, the
+never-touch list, and the fault-injection rule for any new check — including the
+corollary this phase just demonstrated, that a check which cannot be made to fail
+should be removed rather than left as an unfalsifiable green line.
+
+**Self-skip (§4.2).** A block whose required content props are all absent renders
+NOTHING — no wrapper, no empty shell. Implemented in `SectionHeader`, `CtaBanner`,
+`LogoStrip` and `Figure`. It follows from §5: the content layer is CMS-shaped, its
+schemas have optional fields, and an unfilled optional field must not leave a
+bordered empty box or a heading with nothing under it. The guard belongs in the
+block because **the block is the only thing that knows what "empty" means for
+it**; the alternative is every page guarding every block at the call site, which
+is where it gets forgotten. **Absent and broken stay different:** a `Figure` with
+no `src` renders nothing, one whose `src` does not resolve is still a build error.
+Demonstrated on the styleguide — an empty `SectionHeader` and an empty `LogoStrip`
+are rendered there and produce no markup at all. *(Pattern adapted from
+lumos-for-astro.)*
+
+**`src/consts.ts`.** Site identity in one module — name, description, canonical
+origin, locale, noindexed routes — consumed by `BaseLayout`, `urls.ts`,
+`robots.txt`, `sitemap.xml` and `astro.config.mjs`. Previously the name was in
+`navigation.ts`, the origin in `astro.config.mjs`, the locale hardcoded in
+`BaseLayout`, and the noindex rule expressed twice. Four places to change and the
+fourth is the one someone misses, which is how a staging origin reaches a
+production canonical tag. `SITE.noindex` is now consumed by both the robots meta
+and the sitemap filter, so a page cannot be told not to be indexed and then listed.
+README's checklist starts with it.
+
+### The dead-class check caught my own regression
+
+Mid-phase, a `git checkout --` used to revert a fault injection also reverted the
+type rename and the control-height change in `FormField`. The next verify run:
+
+```
+  DEAD CLASS "text-body-sm" — in the markup on 2 page(s), no rule in any stylesheet.
+```
+
+Found in seconds, by the check ported for exactly this class of failure, against a
+regression introduced by the tooling rather than by an edit. Worth recording
+because it is the first time a check here has caught something nobody was looking
+for.
+
+Two reports were also fixed for lying: `utilities` and `keyboard` both appended a
+cheerful summary line unconditionally, so a failing run printed its own
+contradiction two lines below the failure. **That is how a reader learns to skim
+the summary.** Both now describe what was found.
+
+### Verified
+
+Identical from a canonical and a space-containing path:
+
+```
+  8 checks, 307 assertions executed        §9 PASS
+```
+
+Lighthouse mobile, behind `wrangler pages dev`, referent proven
+(`serving dist (23753 B on /)`): **100/100/100/100** on `/`, and 100 across
+performance/a11y/best-practices on `/styleguide`.
+
+Gutter alignment measured at 1440px: mega panel column, sticky index, section
+heading — all x = 104.
+
+**Re-frozen. v1.1.0 re-pointed to this commit.**

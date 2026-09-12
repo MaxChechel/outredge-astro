@@ -1,5 +1,8 @@
 // @ts-check
 import { defineConfig, svgoOptimizer } from 'astro/config';
+// The canonical origin is declared once, in src/consts.ts, and read here — so a
+// build cannot disagree with the sitemap about where the site lives.
+import { SITE } from './src/consts.ts';
 import mdx from '@astrojs/mdx';
 import tailwindcss from '@tailwindcss/vite';
 
@@ -38,9 +41,9 @@ function styleguideRoute() {
 
 // https://astro.build/config
 export default defineConfig({
-  // REPLACE PER PROJECT. Required: canonical URLs, og:url and the sitemap are
-  // all built from it (src/lib/urls.ts), and the build throws without it.
-  site: 'https://example.com',
+  // Declared in src/consts.ts. Required: canonical URLs, og:url and the sitemap
+  // are all built from it (src/lib/urls.ts), and the build throws without it.
+  site: SITE.origin,
 
   output: 'static',
   trailingSlash: 'never',

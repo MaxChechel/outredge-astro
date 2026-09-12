@@ -27,7 +27,7 @@
  * `<fieldset>` with a `<legend>`, and that is all it is:
  *
  *     <fieldset class="field-group flex flex-col gap-sm">
- *       <legend class="text-body-sm text-secondary mb-xs">Engagement</legend>
+ *       <legend class="text-sm text-secondary mb-xs">Engagement</legend>
  *       <FormField type="radio" name="engagement" value="project" label="One-off project" />
  *       <FormField type="radio" name="engagement" value="retainer" label="Retainer" />
  *     </fieldset>
@@ -101,7 +101,10 @@ const invalid = error ? 'true' : undefined;
 
 const control = [
   'w-full rounded-sm border border-line-strong bg-surface text-primary',
-  'px-sm py-xs text-body-sm',
+  // A real control height rather than padding around a line box. 3rem matches
+  // the Button, so a form and its submit read as one set of controls instead of
+  // two, and it clears the 24px minimum target on its own.
+  'min-h-control-md px-sm py-xs text-sm',
   'placeholder:text-tertiary',
   'transition-colors duration-spring-soft ease-spring-soft',
   'hover:border-accent focus-visible:border-accent',
@@ -134,14 +137,14 @@ const control = [
           />
           <span class="control-mark" aria-hidden="true" />
         </span>
-        <label for={fieldId} class="text-body-sm text-secondary">
+        <label for={fieldId} class="text-sm text-secondary">
           {label}
           {required && <span class="sr-only"> (required)</span>}
         </label>
       </div>
     ) : (
       <Fragment>
-        <label for={fieldId} class="text-body-sm text-secondary">
+        <label for={fieldId} class="text-sm text-secondary">
           {label}
           {required && <span class="sr-only"> (required)</span>}
         </label>
@@ -156,7 +159,7 @@ const control = [
             disabled={disabled}
             aria-invalid={invalid}
             aria-describedby={described}
-            class:list={[control, 'resize-y']}
+            class:list={[control, 'min-h-0 resize-y py-sm']}
           />
         ) : type === 'select' ? (
           <span class="select-wrap relative block">
@@ -167,7 +170,7 @@ const control = [
               disabled={disabled}
               aria-invalid={invalid}
               aria-describedby={described}
-              class:list={[control, 'appearance-none pr-xl']}
+              class:list={[control, 'appearance-none cursor-pointer pr-control-md']}
             >
               <option value="">{placeholder ?? 'Select one…'}</option>
               {options.map((option) => (

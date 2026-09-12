@@ -71,7 +71,7 @@ references a primitive.
   ramp does **not** live in the `--color-*` namespace, so `bg-gray-500` does not
   compile. Primitives are not a vocabulary.
 - **Fluid type scale, named for ROLE**: `--text-h1 … --text-h6`, plus
-  `--text-lede`, `--text-body`, `--text-body-sm`, `--text-caption`,
+  `--text-large`, `--text-body`, `--text-sm`, `--text-caption`,
   `--text-eyebrow`. Every step a `clamp()` mobile→desktop. **Breakpointless —
   type never jumps at a media query.**
   - **The scale is not in `@theme`** (see 2.1.1). `--text-*` is reset to
@@ -171,7 +171,7 @@ The tokens are therefore plain custom properties, each exposed by **one explicit
 | `--bg-subtle` | a secondary ground — bands, wells | `bg-subtle` |
 | `--bg-surface` | cards and anything raised | `bg-surface` |
 | `--text-primary` | headings and body | `text-primary` |
-| `--text-secondary` | supporting copy, lede | `text-secondary` |
+| `--text-secondary` | supporting copy, ledes | `text-secondary` |
 | `--text-tertiary` | captions, metadata, labels | `text-tertiary` |
 | `--line` | dividers and card edges | `border-line`, `divide-line` |
 | `--line-strong` | the boundary of an interactive control | `border-line-strong` |
@@ -232,8 +232,8 @@ primitives using these; it does not copy the starter's values.
 
 ### 2.5 Base, type styles, prose
 Semantic HTML defaults, `:focus-visible` states, `prefers-reduced-motion`
-handling. Type styles (`.text-h1`…`.text-h6`, `.text-lede`, `.text-body`,
-`.text-body-sm`, `.text-caption`, `.text-eyebrow`) defined **once**, and they are
+handling. Type styles (`.text-h1`…`.text-h6`, `.text-large`, `.text-body`,
+`.text-sm`, `.text-caption`, `.text-eyebrow`) defined **once**, and they are
 the only way to apply type — there is no bare `text-<size>` to fall back to.
 
 **Prose is one scoped `.prose` style of our own — NOT the Tailwind typography
@@ -325,7 +325,7 @@ The indivisible primitives every project ships:
   `<legend>`, and that is all it is:
   ```astro
   <fieldset class="field-group flex flex-col gap-sm">
-    <legend class="text-body-sm text-secondary mb-xs">Engagement</legend>
+    <legend class="text-sm text-secondary mb-xs">Engagement</legend>
     <FormField type="radio" name="engagement" value="project"  label="One-off project" />
     <FormField type="radio" name="engagement" value="retainer" label="Retainer" />
   </fieldset>
@@ -354,7 +354,8 @@ whether it paints.
 ### 4.2 Blocks
 Composed pieces, still context-free:
 
-`SectionHeader` (eyebrow + heading + lede; heading level as prop),
+`SectionHeader` (eyebrow + heading + lede — the editorial slot, rendered at
+`--text-large`; heading level as prop),
 `Faq`/accordion (native `<details>` first), `CtaBanner`, `LogoStrip` (label + row
 of `ClientLogo` marks).
 
@@ -375,6 +376,26 @@ not a component. They are siblings, not subclasses.
 4.5. They are only ever reachable from an MDX body.
 
 Block rules:
+- **A block that would render nothing renders NOTHING — no wrapper, no empty
+  shell.** A block whose required content props are all absent or empty returns
+  no markup at all.
+
+  This follows directly from 5: the content layer is CMS-shaped, its schemas have
+  optional fields, and an optional field that is not filled must not leave a
+  bordered empty box, a heading with nothing under it, or a `<figure>` with a
+  caption and no image on the page. The alternative is every page guarding every
+  block with `{data.x && <Block …/>}`, which is the same condition written once
+  per call site instead of once per component — and the call site is where it gets
+  forgotten.
+
+  The guard belongs in the block because the block is the only thing that knows
+  what "empty" means for it: a `SectionHeader` with no heading, eyebrow or lede;
+  a `CtaBanner` with no heading, body or action; a `LogoStrip` with no marks; a
+  `Figure` with no source. **Absent and broken stay different**: a `Figure` with
+  no `src` renders nothing, while a `Figure` whose `src` does not resolve is still
+  a build error.
+
+  *(Pattern adapted from lumos-for-astro.)*
 - **Heading level is always a prop** (`headingLevel={2|3}`) — same block, correct
   outline anywhere. One `h1` per page, zero skips, verified.
 - **Dynamic-tag caveat:** `const { as: Tag } = Astro.props` + `<Tag>` silently
@@ -581,6 +602,10 @@ missing required slot **fails the build**.
   enforce (see below).
 - **Referent assertion** before any rendered check: the port under test is
   serving this build, proven by comparison, not assumed.
+- **Keyboard operability**, driven with real key events: every enabled control
+  reachable by Tab, every focused control painting a visible ring (2.4.7), and no
+  element wearing an interactive ARIA role a native element already provides.
+  axe cannot press Tab; this is the half it does not cover.
 - Lighthouse mobile, homepage + heaviest page, behind real host config:
   **100/100/100/100 is the bar**, numbers recorded.
 

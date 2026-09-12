@@ -54,7 +54,7 @@ const { item, headingLevel = 'h3', class: className } = Astro.props as Props;
         <h3 class="text-h6 text-primary">{item.title}</h3>
       )
     }
-    <p class="text-body-sm text-secondary">{item.summary}</p>
+    <p class="text-sm text-secondary">{item.summary}</p>
     {
       item.tags.length > 0 && (
         <ul class="list-bare gap-2xs pt-xs flex flex-wrap">

@@ -10,8 +10,8 @@ import { Image } from 'astro:assets';
  * always" is enforced at compile time, not at review.
  */
 interface Props {
-  /** Filename, with extension, under src/assets/items/. */
-  src: string;
+  /** Filename, with extension, under src/assets/items/. Absent → renders nothing. */
+  src?: string;
   alt: string;
   caption?: string;
   class?: string;
@@ -19,17 +19,21 @@ interface Props {
 
 const { src, alt, caption, class: className } = Astro.props as Props;
 
+/* SELF-SKIP (§4.2). An optional CMS image field that arrived empty must not
+   produce an empty <figure> with a caption under it. A MISSING file is still a
+   build error below — absent and broken are different things. */
 const images = import.meta.glob<{ default: ImageMetadata }>(
   '../../assets/items/*.{avif,webp,png,jpg,jpeg}',
   { eager: true },
 );
-const entry = images[`../../assets/items/${src}`];
-if (!entry) throw new Error(`Figure: no image at src/assets/items/${src}`);
+const entry = src ? images[`../../assets/items/${src}`] : undefined;
+if (src && !entry) throw new Error(`Figure: no image at src/assets/items/${src}`);
 ---
 
+{entry && (
 <figure class:list={['gap-sm flex flex-col', className]}>
   <Image
-    src={entry.default}
+    src={entry!.default}
     alt={alt}
     widths={[640, 1024, 1440]}
     sizes="(min-width: 62rem) 60vw, 92vw"
@@ -39,3 +43,4 @@ if (!entry) throw new Error(`Figure: no image at src/assets/items/${src}`);
   />
   {caption && <figcaption class="text-caption text-tertiary">{caption}</figcaption>}
 </figure>
+)}

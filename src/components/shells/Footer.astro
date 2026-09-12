@@ -1,6 +1,7 @@
 ---
 import Logo from '../atoms/Logo.astro';
-import { footerLinks, site } from '../../data/navigation';
+import { footerLinks } from '../../data/navigation';
+import { SITE } from '../../consts';
 import Section from '../Section.astro';
 
 /**
@@ -17,8 +18,8 @@ const year = new Date().getFullYear();
 <Section as="footer" space="lg" class="border-line bg-subtle border-t">
   <div class="gap-lg md:gap-xl flex flex-col md:flex-row md:items-start md:justify-between">
     <div class="gap-sm flex flex-col md:basis-1/3">
-      <Logo class="w-nav-logo text-primary" title={site.name} />
-      <p class="text-body-sm text-tertiary">{site.description}</p>
+      <Logo class="w-nav-logo text-primary" title={SITE.name} />
+      <p class="text-sm text-tertiary">{SITE.description}</p>
     </div>
 
     <nav aria-label="Footer">
@@ -28,7 +29,7 @@ const year = new Date().getFullYear();
             <li>
               <a
                 href={href}
-                class="text-body-sm text-secondary hover:text-primary transition-colors duration-spring-soft ease-spring-soft"
+                class="text-sm text-secondary hover:text-primary transition-colors duration-spring-soft ease-spring-soft"
               >
                 {label}
               </a>
@@ -40,6 +41,6 @@ const year = new Date().getFullYear();
   </div>
 
   <p class="text-caption text-tertiary border-line mt-xl pt-md border-t">
-    &copy; {year} {site.name}
+    &copy; {year} {SITE.name}
   </p>
 </Section>

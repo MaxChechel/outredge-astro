@@ -1,6 +1,6 @@
 ---
-import { canonicalUrl } from '../../lib/urls';
-import { site } from '../../data/navigation';
+import { canonicalUrl, canonicalPath } from '../../lib/urls';
+import { SITE, isNoindexed } from '../../consts';
 import Nav from './Nav.astro';
 import Footer from './Footer.astro';
 import '../../styles/global.css';
@@ -16,21 +16,27 @@ interface Props {
   description?: string;
   /** Root-relative path to the share image. */
   ogImage?: string;
-  /** Set on pages that should not be indexed — the styleguide, for one. */
+  /**
+   * Force noindex. Routes listed in SITE.noindex are noindexed without this —
+   * stated once in consts.ts and consumed here and by the sitemap, so the two
+   * cannot drift.
+   */
   noindex?: boolean;
   /** Renders without the site chrome. */
   bare?: boolean;
 }
 
-const { title, description = site.description, ogImage, noindex = false, bare = false } =
+const { title, description = SITE.description, ogImage, noindex = false, bare = false } =
   Astro.props as Props;
 
 const canonical = canonicalUrl(Astro.url.pathname, Astro.site);
+const path = canonicalPath(Astro.url.pathname);
+const isNoindex = noindex || isNoindexed(path);
 const ogImageAbsolute = ogImage ? new URL(ogImage, Astro.site).href : undefined;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang={SITE.locale}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -38,7 +44,7 @@ const ogImageAbsolute = ogImage ? new URL(ogImage, Astro.site).href : undefined;
     <title>{title}</title>
     {description && <meta name="description" content={description} />}
     <link rel="canonical" href={canonical} />
-    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {isNoindex && <meta name="robots" content="noindex, nofollow" />}
 
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />

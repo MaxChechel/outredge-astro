@@ -1,3 +1,5 @@
+import { SITE } from '../consts';
+
 /**
  * Canonical URL helper.
  *
@@ -14,6 +16,9 @@ export function canonicalPath(pathname: string): string {
 }
 
 export function canonicalUrl(pathname: string, site: URL | undefined): string {
-  if (!site) throw new Error('`site` must be set in astro.config.mjs for canonical URLs.');
-  return new URL(canonicalPath(pathname), site).href;
+  /* `site` comes from astro.config.mjs, which reads SITE.origin — so the two
+     cannot disagree. The argument stays because Astro hands it to us per-page
+     and a helper that ignored it would be lying about where it got the origin. */
+  const origin = site ?? new URL(SITE.origin);
+  return new URL(canonicalPath(pathname), origin).href;
 }

@@ -42,7 +42,7 @@ const configured = Boolean(turnstileSiteKey);
         !configured && (
           <div class="border-line-strong bg-subtle p-md gap-xs flex flex-col rounded-md border">
             <p class="text-h6 text-primary">This form is not live yet.</p>
-            <p class="text-body-sm text-secondary">
+            <p class="text-sm text-secondary">
               <code>PUBLIC_TURNSTILE_SITE_KEY</code> is unset, so no Turnstile widget is loaded and the controls
               below stay disabled. Configure the endpoint, verify a submission end to end, and it enables itself.
             </p>
@@ -95,7 +95,7 @@ const configured = Boolean(turnstileSiteKey);
             each option, and no component can supply it without also owning how
             the options are laid out. */}
         <fieldset class="field-group gap-sm flex flex-col">
-          <legend class="text-body-sm text-secondary mb-xs">How would you like to work?</legend>
+          <legend class="text-sm text-secondary mb-xs">How would you like to work?</legend>
           <FormField type="radio" name="engagement" value="project" label="A one-off project" disabled={true} />
           <FormField type="radio" name="engagement" value="retainer" label="An ongoing retainer" disabled={true} />
           <FormField type="radio" name="engagement" value="unsure" label="Not sure yet" disabled={true} />
