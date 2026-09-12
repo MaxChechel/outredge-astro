@@ -320,7 +320,29 @@ The indivisible primitives every project ships:
     white on a light theme's white fill. They follow `--accent-contrast` like
     everything else on an accent fill, and the contrast matrix (§9) already
     covers that pair.
-  - **Zero JavaScript.**
+  - **The dropdown is the native control too.** `appearance: base-select` opts a
+    `<select>` out of the platform widget and into one the page styles — the
+    button, the popup, the options and the checkmark — without giving up the
+    element. Progressive enhancement: a browser without it gets the styled native
+    control. The alternative anyone reaches for first is a div with
+    `role="combobox"`, which buys the same appearance and then owes focus
+    management, type-ahead, announcement, form association and mobile behaviour
+    forever.
+  - **One script, and it is a ruling (§6):** Enter opens a select's menu. A
+    focused `<select>` opens on Space and the arrows but NOT on Enter, on any
+    platform — measured: Enter on a select inside a form does nothing at all.
+    That is a dead key on the control people most expect it to work on. One
+    delegated listener, ~217 B gzipped, declared in the census. Everything else
+    about these controls is CSS.
+  - **A form UI library is not the answer, and the measurement says so.** Every
+    headless form library exists to rebuild native controls for teams that needed
+    visual control the platform did not allow — and `base-select` is the platform
+    allowing it. A library would add a framework runtime to a static site to
+    re-implement accessibility that `<select>` already has. The bar to clear
+    before adopting one is a control HTML genuinely does not ship: a combobox with
+    autocomplete, a multi-select with tags, a date picker. Those are real, they
+    are hard, and §4.5's rule applies — built when a project's content demands
+    one, under §6 and the a11y rules, not before.
 - **A radio group is a PATTERN, not a component.** It is a `<fieldset>` with a
   `<legend>`, and that is all it is:
   ```astro

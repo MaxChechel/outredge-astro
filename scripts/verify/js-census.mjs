@@ -34,6 +34,12 @@ const EXPECTED = [
     maxGzip: 500,
   },
   {
+    id: 'select enter-to-open',
+    signature: /showPicker/,
+    why: 'ARCHITECTURE §6/§4.1 — a focused <select> opens on Space and the arrows but NOT on Enter, on any platform. Measured here: Enter on a select inside a form does nothing at all. One delegated listener restores the key people expect, on a native control, instead of rebuilding the select as a div with role="combobox".',
+    maxGzip: 400,
+  },
+  {
     id: 'clip playback',
     signature: /data-clip/,
     why: 'ARCHITECTURE §7 — attaches the MP4 only near the viewport, and honours prefers-reduced-motion. Not on any page in this repo; ships when a project adds media.',

@@ -230,6 +230,13 @@
   --radius-lg: 1rem;
   --radius-full: 100vw;
 
+  /* THE SYSTEM'S ONLY SHADOW, and it exists for one case: a popup floating over
+     content. Everywhere else separation is a 1px rule and a background step,
+     which is what makes the dark theme derivable (§2.4 rule 4). A popover is the
+     exception because nothing else in the page is above the page — a border
+     alone cannot say that. Remapped per theme like any other token. */
+  --shadow-popover: 0 1rem 2.5rem -0.75rem rgb(0 0 0 / 0.18), 0 0.25rem 0.75rem -0.25rem rgb(0 0 0 / 0.1);
+
   --border-width: 1px;
   --focus-width: 0.125rem;
   --focus-offset: 0.1875rem;
@@ -606,6 +613,10 @@
   --accent-contrast: var(--gray-950);/* 7.12 : 1 on the accent fill */
 
   color-scheme: dark;
+
+  /* A shadow over a near-black ground does almost nothing, so on dark the popover
+     leans on its border and a deeper, tighter shadow to read as lifted. */
+  --shadow-popover: 0 1rem 2.5rem -0.75rem rgb(0 0 0 / 0.6), 0 0.25rem 0.75rem -0.25rem rgb(0 0 0 / 0.45);
 
   /* The scrim inverts: a dark veil over an already-dark ground is invisible. */
   --bg-scrim: color-mix(in oklab, var(--gray-1000) 72%, transparent);
@@ -1253,6 +1264,16 @@
     display: block;
   }
 
+  /* Set here rather than with the `appearance-none` utility, for two reasons that
+     both bite: a utility lands in @layer utilities and would beat the
+     `appearance: base-select` enhancement further down this file, and a rule
+     placed AFTER that enhancement would beat it on source order within the same
+     layer. Cascade position is load-bearing here — this rule is the base the
+     @supports block overrides, so it has to come first. */
+  .select-wrap select {
+    appearance: none;
+  }
+
   .select-icon {
     position: absolute;
     inset-block: var(--border-width);
@@ -1299,6 +1320,117 @@
   .select-wrap select option {
     background-color: var(--bg-surface);
     color: var(--text-primary);
+  }
+}
+
+/* --- The dropdown, fully ours, still a native <select> -------------------
+   `appearance: base-select` opts the control out of the platform widget and into
+   one the page can style — the button, the popup, the options and the checkmark
+   — WITHOUT giving up the element. It is still a <select>: still announced as a
+   combobox, still form-associated, still in the FormData, still keyboard-operable,
+   and still covered by §4.1's native-elements-only rule and by the ARIA-impostor
+   assertion in scripts/verify/keyboard.mjs.
+
+   The alternative anyone reaches for first — a div with role="combobox", a
+   listbox, roving tabindex and a few hundred lines of JavaScript — buys the same
+   appearance and then owes: focus management, type-ahead, screen-reader
+   announcement, form association, mobile behaviour, and every bug in all of them.
+   This costs a CSS block.
+
+   PROGRESSIVE ENHANCEMENT, and the degradation is the point: a browser without
+   support gets the styled native control from the rules above, which is what this
+   system shipped yesterday and is perfectly usable. Nothing is conditional on
+   JavaScript.
+   ------------------------------------------------------------------------- */
+@supports (appearance: base-select) {
+  @layer components {
+    .select-wrap select,
+    .select-wrap select::picker(select) {
+      appearance: base-select;
+    }
+
+    /* The control keeps every token it already had; `base-select` only changes
+       what the browser draws underneath. */
+    .select-wrap select {
+      display: flex;
+      align-items: center;
+      text-align: start;
+    }
+
+    /* Our own chevron span is already positioned over the control, so the
+       built-in one would be a second arrow. */
+    .select-wrap select::picker-icon {
+      display: none;
+    }
+
+    /* The popup. `position-area` anchors it to the control; the margin is the
+       gap between them. */
+    .select-wrap select::picker(select) {
+      position-area: block-end span-inline-end;
+      margin-block-start: var(--spacing-xs);
+      width: anchor-size(width);
+      max-height: 18rem;
+      overflow-y: auto;
+      padding: var(--spacing-2xs);
+      border: var(--border-width) solid var(--line-strong);
+      border-radius: var(--radius-md);
+      background-color: var(--bg-surface);
+      /* The one shadow in the system, and it is load-bearing rather than
+         decorative: a popup floating over content is the one case where a border
+         alone does not say "this is above that". It is a token so the dark theme
+         can reach it. */
+      box-shadow: var(--shadow-popover);
+      opacity: 0;
+      transform: translateY(-0.25rem);
+      transition:
+        opacity var(--transition-duration-spring-soft) var(--ease-spring-soft),
+        transform var(--transition-duration-spring-soft) var(--ease-spring-soft),
+        overlay var(--transition-duration-spring-soft) allow-discrete,
+        display var(--transition-duration-spring-soft) allow-discrete;
+    }
+
+    .select-wrap select::picker(select):popover-open {
+      opacity: 1;
+      transform: none;
+
+      @starting-style {
+        opacity: 0;
+        transform: translateY(-0.25rem);
+      }
+    }
+
+    .select-wrap select option {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-sm);
+      padding: var(--spacing-xs) var(--spacing-sm);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-sm);
+      transition: background-color var(--transition-duration-fast) var(--ease-out);
+    }
+
+    /* Both states, because a pointer user and a keyboard user are looking for the
+       same affordance and only one of them has a pointer. */
+    .select-wrap select option:hover,
+    .select-wrap select option:focus {
+      background-color: var(--bg-subtle);
+    }
+
+    .select-wrap select option:checked {
+      color: var(--accent);
+    }
+
+    /* The tick the browser puts beside the selected option. Ours follows the
+       accent like every other selected-state mark in the system. */
+    .select-wrap select option::checkmark {
+      order: 1;
+      margin-inline-start: auto;
+      color: var(--accent);
+    }
+
+    .select-wrap select option:first-of-type {
+      color: var(--text-tertiary);
+    }
   }
 
   /* A select showing its placeholder reads as a placeholder. */

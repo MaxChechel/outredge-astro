@@ -1469,3 +1469,98 @@ Gutter alignment measured at 1440px: mega panel column, sticky index, section
 heading — all x = 104.
 
 **Re-frozen. v1.1.0 re-pointed to this commit.**
+
+---
+
+## 2026-09-12 — Entry 12. The select behaves like a dropdown, and Enter opens it
+
+Two reports from Max: the select should behave like a real dropdown rather than
+the platform widget, and Enter on a focused select does not open the menu.
+
+### The second one first, because it is the honest bit
+
+Measured before deciding anything. A focused `<select>` opens on **Space**,
+**ArrowDown** and **Alt+ArrowDown**. It does not open on **Enter** — on any
+platform, by design. And on the contact form, Enter on a focused select
+**neither opened the menu nor submitted the form. It did nothing at all.**
+
+A dead key on the one control people most expect Enter to work on. Enter is
+"activate the thing I am on" everywhere else in a form, and a keyboard user who
+presses it and gets silence concludes the control is broken rather than that they
+used the wrong key.
+
+So: `src/scripts/select.ts`, one delegated listener, **217 B gzipped**, declared
+in the census with its reason. It is an enhancement, not a dependency — Space and
+the arrows keep working without it, and a browser without `showPicker()` is left
+alone. Verified: all four keys now open the menu.
+
+### The dropdown, without giving up the element
+
+`appearance: base-select` opts a `<select>` out of the platform widget and into
+one the page styles — the button, the popup, the options, the checkmark — **while
+it stays a `<select>`.** Still announced as a combobox, still form-associated,
+still in the `FormData`, still keyboard-operable, still passing the ARIA-impostor
+assertion in `keyboard.mjs`.
+
+Probed the browser before building: `showPicker`, `appearance: base-select` and
+`::picker(select)` all supported in Chrome 152. Styled the popup with the system's
+own tokens, options with an accent checkmark, and a spring-eased open through
+`@starting-style` + `allow-discrete`.
+
+**Progressive enhancement, and the degradation is the point:** a browser without
+`base-select` gets the styled native control from the rules above it, which is
+what shipped yesterday and is perfectly usable. Nothing is conditional on JS.
+
+**One new token, and it is the system's first shadow.** `--shadow-popover`. §1
+says there are no shadow tokens because the design separates with 1px rules and
+background steps — which is also what makes the dark theme derivable. A popover is
+the exception: nothing else in the page is *above* the page, and a border alone
+cannot say that. Remapped per theme, deeper and tighter on dark where a soft
+shadow does nothing.
+
+### A cascade bug worth recording
+
+`appearance: base-select` did not apply, twice, for two different reasons:
+
+1. **`appearance-none` as a Tailwind utility.** Utilities land in
+   `@layer utilities`, which beats `@layer components` — so the utility silently
+   overrode the enhancement. Moved the base `appearance` into the components
+   layer.
+2. **Source order inside the same layer.** The moved rule landed *after* the
+   `@supports` block, so it still won. Moved it above.
+
+Both were invisible in source and obvious in `getComputedStyle` — `"none"` where
+`"base-select"` was expected, while an inline style proved the feature worked.
+**Cascade position is load-bearing here**, and both fixes carry a comment saying
+so, because the next person to add a utility to that select will hit it again.
+
+### And the claim that became false
+
+The styleguide said **"Zero JavaScript"** about the form controls. It is now 217 B.
+Corrected rather than left — a page that exists to describe the system must not
+describe a system the build contradicts. The copy now states the number and what
+it buys.
+
+### On adding a form UI library
+
+Asked, and answered with the measurement rather than a preference. Recorded in
+ARCHITECTURE §4.1: every headless form library exists to rebuild native controls
+for teams that needed visual control the platform did not allow — and
+`base-select` is the platform allowing it. A library would add a framework runtime
+to a static site to re-implement accessibility `<select>` already has.
+
+The bar to clear before adopting one is a control HTML genuinely does not ship — a
+combobox with autocomplete, a multi-select with tags, a date picker. Those are
+real and hard, and §4.5's rule applies: built when a project's content demands
+one, not before.
+
+Current state, measured: **axe 0 violations across 6 page/width runs; every
+enabled control reachable by Tab with a visible focus ring; no ARIA impostors;
+1,714 B of JavaScript for the entire site.**
+
+### Verified
+
+`8 checks, 308 assertions executed — §9 PASS`.
+
+The preview guard also fired twice during this work, both times on a server I had
+started by hand and left running. Working as intended, and mildly humbling.

@@ -99,6 +99,14 @@ if (type === 'radio' && !value) {
 const described = error ? errorId : undefined;
 const invalid = error ? 'true' : undefined;
 
+/**
+ * NOTE, and it is load-bearing: there is no `appearance-none` utility on the
+ * select. A utility lands in `@layer utilities`, which beats `@layer components`,
+ * and would override the `appearance: base-select` that turns the control into a
+ * styleable dropdown. The base `appearance` is set in global.css instead — in the
+ * same layer as the enhancement, and before it, so source order lets the
+ * enhancement win.
+ */
 const control = [
   'w-full rounded-sm border border-line-strong bg-surface text-primary',
   // A real control height rather than padding around a line box. 3rem matches
@@ -170,7 +178,7 @@ const control = [
               disabled={disabled}
               aria-invalid={invalid}
               aria-describedby={described}
-              class:list={[control, 'appearance-none cursor-pointer pr-control-md']}
+              class:list={[control, 'cursor-pointer pr-control-md']}
             >
               <option value="">{placeholder ?? 'Select one…'}</option>
               {options.map((option) => (
@@ -206,3 +214,9 @@ const control = [
     )
   }
 </div>
+
+<script>
+  /* Loaded by the component, so it ships only on pages that render a form
+     control — and once per page, because Astro hoists and dedupes it. */
+  import '../../scripts/select';
+</script>

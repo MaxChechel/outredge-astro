@@ -700,11 +700,18 @@ const INDEX = [
         <p class="sg-meta measure">
           All native: <span class="sg-mono">&lt;select&gt;</span>,
           <span class="sg-mono">&lt;input type="checkbox"&gt;</span>,
-          <span class="sg-mono">&lt;input type="radio"&gt;</span>. `appearance: none` removes the platform box and
-          nothing else, so each one stays focusable, announced, form-associated and keyboard-operable for free. The
-          tick, the dot and the arrow are drawn in CSS and follow
-          <span class="sg-mono">--accent-contrast</span>, which a hardcoded SVG could not.
-          <strong class="text-primary">Zero JavaScript.</strong>
+          <span class="sg-mono">&lt;input type="radio"&gt;</span>. Each stays focusable, announced,
+          form-associated and keyboard-operable for free. The tick, the dot and the arrow are drawn in CSS and
+          follow <span class="sg-mono">--accent-contrast</span>, which a hardcoded SVG could not.
+        </p>
+        <p class="sg-meta measure">
+          The dropdown is the native control too. <span class="sg-mono">appearance: base-select</span> opts a
+          <span class="sg-mono">&lt;select&gt;</span> out of the platform widget and into one the page styles —
+          button, popup, options and checkmark — without giving up the element. Browsers without it get the styled
+          native control, which is the same thing minus the custom popup.
+          <strong class="text-primary">217 B of JavaScript</strong>, and it buys one thing: Enter opens the menu.
+          A focused select opens on Space and the arrows but not on Enter, on any platform — measured here, Enter
+          did nothing at all. That is a dead key on the control people most expect it to work on.
         </p>
 
         <div class="gap-md grid lg:grid-cols-3">
