@@ -1,6 +1,7 @@
 ---
 title: Images normalized in the adapter
-summary: Components receive { src, width, height, alt }. The loader's image type never reaches them.
+slug: item-three
+summary: Components receive { src, srcset, width, height, alt }. The loader's image type never reaches them.
 cover: ../../assets/items/item-three.webp
 coverAlt: Placeholder cover — concentric arcs on a darker grey ground
 order: 3

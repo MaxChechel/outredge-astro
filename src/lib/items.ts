@@ -1,4 +1,4 @@
-import { getCollection, getEntry, render, type CollectionEntry } from 'astro:content';
+import { getCollection, render, type CollectionEntry } from 'astro:content';
 import { getImage } from 'astro:assets';
 
 /**
@@ -9,14 +9,17 @@ import { getImage } from 'astro:assets';
  * `CollectionEntry<'items'>` ever crosses into a component's props, so a swap
  * from `glob()` to a Sanity loader changes this file and stops.
  *
- * The image is normalized here to `{ src, width, height, alt }` — a plain,
- * source-agnostic shape. `getImage()` is what turns a glob loader's
- * ImageMetadata into that; a CMS loader would build the same object from a URL
- * and the dimensions the CMS reports. The card component cannot tell them apart,
- * which is the point.
+ * The image is normalized here to `{ src, srcset, width, height, alt }` — a
+ * plain, source-agnostic shape. `getImage()` is what turns a glob loader's
+ * ImageMetadata into that; a CMS loader would build the same object from a URL,
+ * the dimensions the CMS reports, and a srcset string built from its image
+ * CDN's width parameter. The card component cannot tell them apart, which is
+ * the point.
  */
 export interface ItemImage {
   src: string;
+  /** `url 400w, url 800w, …` — every candidate at or below the source's real width. */
+  srcset: string;
   width: number;
   height: number;
   alt: string;
@@ -32,24 +35,40 @@ export interface ItemView {
   publishedAt?: Date;
 }
 
-/** Cover render width. One number, so every card asks for the same asset. */
-const COVER_WIDTH = 800;
+/**
+ * Cover candidates. A card is drawn anywhere from ~280px (one column on a
+ * phone) to ~430px (a third of the container), so these cover 1x through 3x of
+ * that range. The browser picks one using the `sizes` the LAYING-OUT parent
+ * passes to the card — only the parent knows how wide its grid cell is.
+ */
+const COVER_WIDTHS = [400, 800, 1200];
+/** The `src` fallback, for the rare client that ignores srcset. */
+const COVER_FALLBACK = 800;
 
 async function toView(entry: CollectionEntry<'items'>): Promise<ItemView> {
-  const image = await getImage({
-    src: entry.data.cover,
-    format: 'webp',
-    width: COVER_WIDTH,
-  });
+  const cover = entry.data.cover;
+
+  /* Clamp every candidate to the source's REAL width. Astro will not upscale,
+     but `getImage()` still reports the width you asked for, so an unclamped
+     `1200w` candidate over a 1037px source names a file smaller than it claims
+     — and a browser trusting the descriptor renders it softer than the one it
+     would otherwise have picked. The emitted HTML looks right either way. */
+  const widths: number[] = COVER_WIDTHS.filter((w) => w < cover.width);
+  widths.push(Math.min(Math.max(...COVER_WIDTHS), cover.width));
+  const fallback = Math.min(COVER_FALLBACK, cover.width);
+
+  const image = await getImage({ src: cover, format: 'webp', width: fallback, widths });
 
   return {
-    slug: entry.id,
+    /* The schema field, never `entry.id` — see content.config.ts. */
+    slug: entry.data.slug,
     title: entry.data.title,
     summary: entry.data.summary,
     image: {
       src: image.src,
-      width: Number(image.attributes.width ?? COVER_WIDTH),
-      height: Number(image.attributes.height ?? Math.round((COVER_WIDTH * 2) / 3)),
+      srcset: image.srcSet.attribute,
+      width: fallback,
+      height: Math.round((fallback * cover.height) / cover.width),
       alt: entry.data.coverAlt,
     },
     tags: entry.data.tags,
@@ -65,6 +84,15 @@ async function toView(entry: CollectionEntry<'items'>): Promise<ItemView> {
 export async function getItems(): Promise<ItemView[]> {
   const entries = await getCollection('items', (entry: CollectionEntry<'items'>) => !entry.data.draft);
   const views = await Promise.all(entries.map(toView));
+  /* Unique by construction while the key was the filename; a field has to be
+     made unique. Two items on one slug would shadow each other in every route
+     and lookup built from it, with no error anywhere. */
+  const seen = new Map<string, string>();
+  for (const [i, view] of views.entries()) {
+    const other = seen.get(view.slug);
+    if (other) throw new Error(`items: slug "${view.slug}" is used by both ${other} and ${entries[i].id}`);
+    seen.set(view.slug, entries[i].id);
+  }
   return views.sort((a, b) => a.order - b.order);
 }
 
@@ -82,7 +110,9 @@ export async function getItems(): Promise<ItemView[]> {
  * component someone deliberately put in `src/components/mdx/index.ts`.
  */
 export async function getItemBody(slug: string) {
-  const entry = await getEntry('items', slug);
+  /* By the slug FIELD. `getEntry('items', slug)` looks up the entry id, which
+     only equals the slug while the loader is glob() over files named for it. */
+  const [entry] = await getCollection('items', (e: CollectionEntry<'items'>) => e.data.slug === slug);
   if (!entry) throw new Error(`getItemBody: no item "${slug}"`);
   const { Content } = await render(entry);
   return { Content, title: entry.data.title };

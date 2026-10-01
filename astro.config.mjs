@@ -24,7 +24,15 @@ function styleguideRoute() {
   return {
     name: 'outredge:styleguide-route',
     hooks: {
-      'astro:config:setup': ({ command, injectRoute, logger }) => {
+      'astro:config:setup': ({ command, injectRoute, updateConfig, logger }) => {
+        /* Whether /styleguide exists in THIS build, as a compile-time constant.
+           src/data/navigation.ts reads it so that no link points at the route
+           when the route is gated out: the starter's nav and footer link the
+           styleguide, and without this every production page shipped ten links
+           to a page the build does not emit. */
+        updateConfig({
+          vite: { define: { 'import.meta.env.STYLEGUIDE': JSON.stringify(command === 'dev' || enabled) } },
+        });
         if (command !== 'dev' && !enabled) {
           logger.info('styleguide: route omitted (set INCLUDE_STYLEGUIDE=1 to include it)');
           return;
@@ -35,6 +43,35 @@ function styleguideRoute() {
         });
         logger.info('styleguide: route injected at /styleguide');
       },
+    },
+  };
+}
+
+/**
+ * No comments in anything a visitor can download. Source is commented freely;
+ * the built site carries none of it.
+ *
+ * The minifier already drops ordinary CSS comments. What survives is `/*! … *\/`,
+ * which lightningcss (Vite's CSS minifier) always preserves as a "legal"
+ * comment and offers no switch for — and Tailwind's compiler prepends one
+ * unconditionally: `tailwindcss vX | MIT License | …`. This removes it from the
+ * emitted stylesheets. Markup comments are handled at the source: `.astro`
+ * templates comment with `{/* *\/}`, which the compiler strips, never `<!-- -->`,
+ * which it ships.
+ *
+ * @returns {import('vite').Plugin}
+ */
+function stripShippedCssComments() {
+  return {
+    name: 'outredge:strip-shipped-css-comments',
+    apply: 'build',
+    enforce: 'post',
+    generateBundle(_, bundle) {
+      for (const file of Object.values(bundle)) {
+        if (file.type === 'asset' && file.fileName.endsWith('.css')) {
+          file.source = String(file.source).replace(/\/\*![\s\S]*?\*\//g, '');
+        }
+      }
     },
   };
 }
@@ -60,7 +97,7 @@ export default defineConfig({
   integrations: [mdx(), styleguideRoute()],
 
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss(), stripShippedCssComments()],
 
     // The CSS minifier lowers output to `build.cssTarget`, and at Vite's stock
     // baseline (chrome87/safari14) it DELETES `linear()` easings outright —

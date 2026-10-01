@@ -1,5 +1,6 @@
 ---
 title: Strict schemas fail loudly
+slug: item-two
 summary: An unknown frontmatter key is a typo or a half-finished rename. Either way it fails the build rather than being ignored.
 cover: ../../assets/items/item-two.webp
 coverAlt: Placeholder cover — concentric arcs on a mid-grey ground

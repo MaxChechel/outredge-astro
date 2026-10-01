@@ -57,6 +57,18 @@ const {
 const SIZE = { h1: 'text-h1', h2: 'text-h2', h3: 'text-h3' } as const;
 const headingClass = SIZE[size];
 
+/* NO DEFAULT SLOT, and passing children is a build error rather than a silent
+   drop. Astro discards children nothing renders — no error, no warning, no
+   element — so a button handed to this block vanished and only a screenshot
+   showed it. §4.2 defines this block as eyebrow + heading + lede; anything else
+   belongs beside it, in the parent's layout. */
+if (Astro.slots.has('default')) {
+  throw new Error(
+    `SectionHeader "${heading}": received children, which it does not render. ` +
+      'Use the `lede` slot for standfirst copy, or place the element beside the header.',
+  );
+}
+
 /* A lede supplied as a slot wins over the prop, for copy that needs markup. */
 const hasLede = Boolean(lede) || Astro.slots.has('lede');
 

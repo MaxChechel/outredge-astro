@@ -14,6 +14,7 @@
 import { spawn } from 'node:child_process';
 import { line, passed, ok, bad, dim } from './lib/report.mjs';
 import { startPreview } from './lib/preview.mjs';
+import { buildWarnings, ensureBuild } from './lib/builds.mjs';
 import { contrast } from './contrast.mjs';
 import { contracts } from './contracts.mjs';
 import { jsCensus } from './js-census.mjs';
@@ -75,6 +76,27 @@ try {
     console.log(build.out);
     process.exit(1);
   }
+
+  // --- build warnings ----------------------------------------------------------
+  // A build that exits 0 can still have dropped a CSS rule or a content entry;
+  // the warning is the only record (lib/builds.mjs). Every build verify makes is
+  // read: the styleguide build here, both production-shaped builds below.
+  const warned = [];
+  for (const [label, w] of [
+    ['styleguide build', buildWarnings(build.out)],
+    ...['production', 'configured'].map((n) => [n, ensureBuild(n).warnings]),
+  ]) {
+    for (const line of w) warned.push(`${label}: ${line}`);
+  }
+  results.push({
+    name: 'build warnings',
+    checks: 3,
+    failures: warned.length,
+    unit: 'builds read for warnings',
+    notes: warned.length
+      ? [...warned, 'A warning is work the build threw away. Fix its cause; do not filter it.']
+      : ['styleguide, production and configured builds: no warnings'],
+  });
 
   // --- static checks, straight off dist --------------------------------------
   results.push(contrast());

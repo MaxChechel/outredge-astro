@@ -20,12 +20,20 @@ import type { ItemView } from '../../lib/items';
  */
 interface Props {
   item: ItemView;
+  /**
+   * The image's `sizes`, supplied by the component that LAYS THE CARD OUT.
+   * Required, with no default: the same card is a third of the container in
+   * one grid and the full column in another, and only the parent knows which.
+   * A default here would be right for one layout and silently wrong — too soft
+   * or several times too heavy — for every other.
+   */
+  sizes: string;
   /** Document outline. The visual size does not move with it. */
   headingLevel?: 'h3' | 'h4';
   class?: string;
 }
 
-const { item, headingLevel = 'h3', class: className } = Astro.props as Props;
+const { item, sizes, headingLevel = 'h3', class: className } = Astro.props as Props;
 ---
 
 <article
@@ -38,6 +46,8 @@ const { item, headingLevel = 'h3', class: className } = Astro.props as Props;
 >
   <img
     src={item.image.src}
+    srcset={item.image.srcset}
+    sizes={sizes}
     width={item.image.width}
     height={item.image.height}
     alt={item.image.alt}

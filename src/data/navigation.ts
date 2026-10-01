@@ -36,11 +36,33 @@ export type NavItem = NavLink | NavGroup;
 export const isGroup = (item: NavItem): item is NavGroup => 'columns' in item;
 
 /**
+ * Whether /styleguide exists in this build — set by the route gate in
+ * astro.config.mjs. A link to a route the build does not emit is a 404 that
+ * builds clean, types clean and passes every rendered check, so the starter's
+ * styleguide links exist only in the builds that have the page.
+ *
+ * PROJECT: once the real information architecture replaces the lists below,
+ * this, `routed()` and the two styleguide links on the index page can go.
+ */
+export const STYLEGUIDE: boolean = import.meta.env.STYLEGUIDE === true;
+const routed = ({ href }: NavLink): boolean => STYLEGUIDE || !href.startsWith('/styleguide');
+
+/** Drops unrouted links, then any column or group left with nothing in it. */
+const onlyRouted = (items: readonly NavItem[]): NavItem[] =>
+  items.flatMap((item): NavItem[] => {
+    if (!isGroup(item)) return routed(item) ? [item] : [];
+    const columns = item.columns
+      .map((column) => ({ ...column, links: column.links.filter(routed) }))
+      .filter((column) => column.links.length > 0);
+    return columns.length ? [{ ...item, columns }] : [];
+  });
+
+/**
  * The bar is deliberately short. A nav is a set of promises about where the site
  * goes, and a starter that ships five placeholder promises teaches whoever copies
  * it to keep them.
  */
-export const navigation: readonly NavItem[] = [
+export const navigation: readonly NavItem[] = onlyRouted([
   {
     label: 'The system',
     id: 'nav-system',
@@ -71,14 +93,14 @@ export const navigation: readonly NavItem[] = [
       },
     ],
   },
-];
+]);
 
 /** The footer's own list. Flat by definition — a footer has no disclosures. */
 export const footerLinks: readonly NavLink[] = [
   { href: '/', label: 'Home' },
   { href: '/styleguide', label: 'Styleguide' },
   { href: '/contact', label: 'Contact' },
-];
+].filter(routed);
 
 /* Site identity lives in src/consts.ts — one module, consumed by BaseLayout,
    urls.ts, robots.txt and sitemap.xml. This file is about links. */

@@ -27,7 +27,7 @@ const turnstileSiteKey = import.meta.env.PUBLIC_TURNSTILE_SITE_KEY as string | u
 const configured = Boolean(turnstileSiteKey);
 ---
 
-<BaseLayout title="Contact" description="Send an enquiry.">
+<BaseLayout title="Contact" description="Send an enquiry." pageType="ContactPage">
   <Section spaceTop="nav" spaceBottom="lg" width="narrow">
     <div class="gap-xl flex flex-col">
       <SectionHeader
@@ -58,16 +58,16 @@ const configured = Boolean(turnstileSiteKey);
         data-form-disabled={configured ? undefined : ''}
         class="gap-md flex flex-col"
       >
-        <!-- Honeypot. Off-screen rather than display:none — some bots skip
+        {/* Honeypot. Off-screen rather than display:none — some bots skip
              hidden fields, and none of them are looking at the viewport.
-             aria-hidden + tabindex="-1" keep it away from real users entirely. -->
+             aria-hidden + tabindex="-1" keep it away from real users entirely. */}
         <div class="sr-only" aria-hidden="true">
           <label for="company_website">Leave this field empty</label>
           <input id="company_website" type="text" name="company_website" tabindex="-1" autocomplete="off" />
         </div>
 
-        <!-- Stamped in the browser by src/scripts/contact.ts. A build-time value
-             would be baked into the HTML and cached. -->
+        {/* Stamped in the browser by src/scripts/contact.ts. A build-time value
+             would be baked into the HTML and cached. */}
         <input type="hidden" name="started_at" value="0" />
 
         <FormField label="Name" name="name" required disabled={true} autocomplete="name" />

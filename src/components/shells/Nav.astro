@@ -49,9 +49,9 @@ const linkClass =
 
 <a href="#main" class="skip-link text-sm">Skip to main content</a>
 
-<!-- The rule under the nav spans the full viewport; the container starts inside
+{/* The rule under the nav spans the full viewport; the container starts inside
      it, so the hairline is not interrupted by the gutter. `sticky` also makes
-     this the containing block the mega panel positions against. -->
+     this the containing block the mega panel positions against. */}
 <header class="border-line bg-base sticky top-0 z-40 border-b">
   <div class="container-main">
     <nav aria-label="Main" class="h-nav gap-md flex items-center justify-between">
@@ -64,7 +64,9 @@ const linkClass =
         <Logo class="w-full" />
       </a>
 
-      <!-- Desktop bar. Hidden below lg, where the disclosure takes over. -->
+      {/* Desktop bar. Hidden below lg, where the disclosure takes over. Skipped
+           when there is nothing to list, rather than shipping an empty list. */}
+      {navigation.length > 0 && (
       <ul class="list-bare gap-lg hidden items-center lg:flex">
         {
           navigation.map((item) =>
@@ -128,14 +130,15 @@ const linkClass =
           )
         }
       </ul>
+      )}
 
       <div class="hidden lg:block">
         <Button href={SITE.contactHref} variant="secondary" size="sm">Contact</Button>
       </div>
 
-      <!-- Mobile disclosure. Same source, folded: a group's columns become
+      {/* Mobile disclosure. Same source, folded: a group's columns become
            labelled sub-lists rather than a second disclosure, so the panel costs
-           no JavaScript. -->
+           no JavaScript. */}
       <details class="nav-disclosure lg:hidden">
         <summary
           class="h-control-md w-control-md border-line flex cursor-pointer list-none items-center justify-center rounded-sm border"
@@ -144,8 +147,8 @@ const linkClass =
           <span class="nav-burger" aria-hidden="true"></span>
         </summary>
 
-        <!-- Full-bleed band, container inside it: the panel's links land on the
-             same gutter line as the logo above them. -->
+        {/* Full-bleed band, container inside it: the panel's links land on the
+             same gutter line as the logo above them. */}
         <div class="border-line bg-base absolute inset-x-0 top-full max-h-[80svh] overflow-y-auto border-y">
           <div class="container-main py-lg">
             <ul class="list-bare gap-lg flex flex-col">

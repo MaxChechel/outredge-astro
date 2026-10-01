@@ -12,6 +12,7 @@ import { join, relative } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { result, line, passed, bytes } from './lib/report.mjs';
 import { isMain } from './lib/main.mjs';
+import { ensureBuild } from './lib/builds.mjs';
 
 const DIST = process.env.DIST ?? 'dist';
 
@@ -47,6 +48,33 @@ const EXPECTED = [
   },
 ];
 
+/**
+ * Scripts served by SOMEBODY ELSE, each declared with its reason. An external
+ * `<script src>` that is not listed here fails the run, exactly as an unnamed
+ * local script does — the rule is the same; only the list was missing, and
+ * without it the first legitimate third-party tag would have forced someone to
+ * weaken the check to ship it.
+ *
+ * NO BYTE BUDGET, on purpose. The payload is served from another origin and can
+ * change without this repo changing, so a number here would assert a
+ * measurement the harness cannot take. Matched on the exact URL: a different
+ * version, path or host is a different script and needs its own ruling.
+ *
+ * External scripts are usually switched on by configuration, so they are looked
+ * for in every build that ships, including `configured` (lib/builds.mjs), not
+ * only in dist/.
+ *
+ * PROJECT: declare here, in the same change that admits the origin in
+ * `_headers` and adds it to THIRD_PARTY in contracts.mjs.
+ */
+const EXTERNAL = [
+  {
+    id: 'Cloudflare Turnstile',
+    src: 'https://challenges.cloudflare.com/turnstile/v0/api.js',
+    why: 'ARCHITECTURE §8 — bot challenge on the contact form, server-verified by the Pages Function. Contact page only, and only once PUBLIC_TURNSTILE_SITE_KEY is set.',
+  },
+];
+
 /** Script types that are data, not code, and do not count against the budget. */
 const DATA_TYPES = ['application/ld+json'];
 
@@ -68,30 +96,47 @@ export function jsCensus() {
   }
 
   const found = [];
+  /* dist/ is counted per instance, as it always was. The other builds add only
+     code dist/ does not already contain — the same module in a second build is
+     not a second script. */
+  const seenCode = new Set();
 
-  // 1. Standalone .js files.
-  for (const f of files.filter((f) => f.endsWith('.js'))) {
-    const code = readFileSync(f, 'utf8');
-    found.push({ where: relative(DIST, f), kind: 'file', code });
-  }
-
-  // 2. Inline modules in HTML. Astro inlines small scripts rather than emitting
-  //    a file, so counting only .js files would report zero while shipping code.
-  for (const f of files.filter((f) => f.endsWith('.html'))) {
-    const html = readFileSync(f, 'utf8');
-    for (const m of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
-      const attrs = m[1];
-      const type = /type="([^"]*)"/.exec(attrs)?.[1] ?? '';
-      if (DATA_TYPES.includes(type)) continue;
-      const src = /src="([^"]*)"/.exec(attrs)?.[1];
-      if (src) {
-        found.push({ where: `${relative(DIST, f)} → ${src}`, kind: 'ref', code: '' });
-        continue;
-      }
-      if (m[2].trim() === '') continue;
-      found.push({ where: relative(DIST, f), kind: 'inline', code: m[2] });
+  const collect = (dir, label, dirFiles) => {
+    const where = (f) => (label ? `${label}: ` : '') + relative(dir, f);
+    // 1. Standalone .js files.
+    for (const f of dirFiles.filter((f) => f.endsWith('.js'))) {
+      const code = readFileSync(f, 'utf8');
+      if (label && seenCode.has(code)) continue;
+      seenCode.add(code);
+      found.push({ where: where(f), kind: 'file', code });
     }
-  }
+
+    // 2. Inline modules in HTML. Astro inlines small scripts rather than emitting
+    //    a file, so counting only .js files would report zero while shipping code.
+    for (const f of dirFiles.filter((f) => f.endsWith('.html'))) {
+      const html = readFileSync(f, 'utf8');
+      for (const m of html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/g)) {
+        const attrs = m[1];
+        const type = /type="([^"]*)"/.exec(attrs)?.[1] ?? '';
+        if (DATA_TYPES.includes(type)) continue;
+        const src = /src="([^"]*)"/.exec(attrs)?.[1];
+        if (src) {
+          if (!label) found.push({ where: `${where(f)} → ${src}`, kind: 'ref', code: '' });
+          continue;
+        }
+        if (m[2].trim() === '' || (label && seenCode.has(m[2]))) continue;
+        seenCode.add(m[2]);
+        found.push({ where: where(f), kind: 'inline', code: m[2] });
+      }
+    }
+  };
+
+  /* dist/ first, then anything that only the production-shaped builds ship: a
+     script switched on by configuration is still a script, and a census of
+     dist/ alone never sees it (lib/builds.mjs). */
+  collect(DIST, '', files);
+  const shipped = ['production', 'configured'].map(ensureBuild);
+  for (const b of shipped.filter((b) => b.ok)) collect(b.dir, b.name, walk(b.dir));
 
   let failures = 0;
   const notes = [];
@@ -104,11 +149,8 @@ export function jsCensus() {
 
     if (s.kind === 'ref') {
       /* A <script src> pointing at a file already counted above is fine; one
-         pointing off-site is a dependency nobody declared. */
-      if (/^https?:/.test(s.where.split('→ ')[1] ?? '')) {
-        failures++;
-        notes.push(`UNDECLARED external script: ${s.where}`);
-      }
+         pointing off-site is checked against EXTERNAL below, across every build
+         that ships. */
       continue;
     }
 
@@ -129,6 +171,47 @@ export function jsCensus() {
     notes.push(`    ${match.why}`);
   }
 
+  /* External scripts, in dist/ and in both production-shaped builds. Not
+     deduplicated like the code above: one URL is one ruling, but every place it
+     loads is reported. */
+  const externals = new Map();
+  const scanExternals = (dir, label) => {
+    for (const f of walk(dir).filter((f) => f.endsWith('.html'))) {
+      for (const m of readFileSync(f, 'utf8').matchAll(/<script\b[^>]*\ssrc="(https?:[^"]+|\/\/[^"]+)"/g)) {
+        const where = `${label}: ${relative(dir, f)}`;
+        if (!externals.has(m[1])) externals.set(m[1], []);
+        externals.get(m[1]).push(where);
+      }
+    }
+  };
+  scanExternals(DIST, 'dist');
+  for (const b of shipped) {
+    if (!b.ok) {
+      failures++;
+      notes.push(`${b.name} build failed — cannot census it. ${b.log}`);
+      continue;
+    }
+    scanExternals(b.dir, b.name);
+  }
+  for (const e of EXTERNAL.filter((e) => !e.why || !e.why.trim())) {
+    failures++;
+    notes.push(`EXTERNAL entry "${e.id}" has no reason. A declaration without a ruling is not a declaration (§6).`);
+  }
+  for (const [src, where] of externals) {
+    const match = EXTERNAL.find((e) => e.src === src);
+    if (!match) {
+      failures++;
+      notes.push(`UNDECLARED external script ${src} — in ${where.slice(0, 3).join(', ')}`);
+      notes.push('    Third-party code is a ruling too (§6). Declare it in EXTERNAL with a reason, or remove it.');
+      continue;
+    }
+    notes.push(`${match.id} — external, ${src} — in ${where.slice(0, 3).join(', ')}`);
+    notes.push(`    ${match.why}`);
+  }
+  for (const e of EXTERNAL.filter((e) => !externals.has(e.src))) {
+    notes.push(`${e.id} — external, declared, in no build. ${e.why}`);
+  }
+
   const unused = EXPECTED.filter((e) => !found.some((s) => e.signature.test(s.code)));
   for (const e of unused) notes.push(`${e.id} — declared, on no page in this build. ${e.why}`);
 
@@ -137,9 +220,9 @@ export function jsCensus() {
   /* The census always runs at least one check — "did we walk dist" — so that a
      genuinely zero-JS build reports a pass rather than an EMPTY. */
   return result('JS census', {
-    checks: found.length + 1,
+    checks: found.length + externals.size + 1,
     failures,
-    unit: 'scripts found in dist (+1 walk)',
+    unit: 'scripts found (+1 walk)',
     notes,
   });
 }

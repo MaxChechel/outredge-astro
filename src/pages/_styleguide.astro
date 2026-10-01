@@ -168,6 +168,11 @@ const demoLogos = [
 ];
 
 const items = await getItems();
+
+/* The card grid below: one column, two from sm (30rem), three from lg (62rem)
+   inside the 82rem container. Each value slightly overstates the drawn width,
+   which costs a few KB; understating it ships a soft image. */
+const CARD_SIZES = '(min-width: 62rem) min(27rem, 33vw), (min-width: 30rem) 50vw, 100vw';
 /* A real MDX body, rendered with the §4.5 vocabulary, so the components in
    src/components/mdx/ are exercised by the harness rather than only shipped. */
 const { Content: ItemBody } = await getItemBody('item-one');
@@ -189,9 +194,9 @@ const INDEX = [
 ---
 
 <BaseLayout title="Styleguide · outredge-system" description="Every token and component in the system, annotated." noindex>
-  <!-- ===================================================================
+  {/* ===================================================================
        HEADER
-       =================================================================== -->
+       =================================================================== */}
   <Section as="header" spaceTop="nav" spaceBottom="lg">
     <div class="gap-2xl flex flex-col">
       <div class="gap-md flex flex-wrap items-end justify-between">
@@ -206,7 +211,7 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        INDEX — sticks under the nav once it reaches it.
 
        A full-bleed band rather than something inside the header Section: a
@@ -216,7 +221,7 @@ const INDEX = [
 
        `top-nav` is the nav's own height token, so the two bars meet exactly and
        keep meeting if the nav height ever changes.
-       =================================================================== -->
+       =================================================================== */}
   <div class="border-line bg-surface top-nav sticky z-30 border-b">
     <nav aria-label="Styleguide sections" class="container-main py-sm">
       <ul class="list-bare gap-x-md gap-y-2xs flex flex-wrap">
@@ -233,9 +238,9 @@ const INDEX = [
     </nav>
   </div>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        01 COLOUR
-       =================================================================== -->
+       =================================================================== */}
   <Section id="color" space="md">
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -272,7 +277,7 @@ const INDEX = [
         </ul>
       </div>
 
-      <!-- Side-by-side theme panels. IDENTICAL MARKUP; only [data-theme] differs. -->
+      {/* Side-by-side theme panels. IDENTICAL MARKUP; only [data-theme] differs. */}
       <div class="gap-md grid md:grid-cols-2">
         {
           themes.map((theme) => (
@@ -301,9 +306,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        02 CONTRAST MATRIX
-       =================================================================== -->
+       =================================================================== */}
   <Section id="contrast" space="md" class="bg-subtle">
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -321,7 +326,7 @@ const INDEX = [
                 {theme} · 9 pairs · floor{' '}
                 {Math.min(...text.filter((r) => r.theme === theme).map((r) => r.ratio)).toFixed(2)}:1
               </p>
-              <div class="overflow-x-auto" tabindex="0" role="region" aria-label={`${theme} theme contrast matrix`}>
+              <div class="scroll-x" tabindex="0" role="region" aria-label={`${theme} theme contrast matrix`}>
                 <table class="sg-matrix">
                   <thead>
                     <tr>
@@ -390,9 +395,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        03 TYPE
-       =================================================================== -->
+       =================================================================== */}
   <Section id="type" space="md">
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -434,9 +439,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        04 SPACING
-       =================================================================== -->
+       =================================================================== */}
   <Section id="spacing" space="md" class="bg-subtle">
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -478,9 +483,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        05 LAYOUT & GUTTERS  (full-bleed, so the rules line up with the real page)
-       =================================================================== -->
+       =================================================================== */}
   <Section id="layout" space="md" width="full">
     <div class="container-main">
       <SectionHeader
@@ -491,9 +496,9 @@ const INDEX = [
       />
     </div>
 
-    <!-- The demo is full-bleed on purpose: the dashed rules below sit at exactly
+    {/* The demo is full-bleed on purpose: the dashed rules below sit at exactly
          the same x as the container edge of every other section on this page.
-         Compare them against the heading above. -->
+         Compare them against the heading above. */}
     <div class="mt-lg border-line relative border-y">
       <div class="sg-gutter-overlay" aria-hidden="true">
         <div class="container-main h-full">
@@ -546,9 +551,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        06 SECTION
-       =================================================================== -->
+       =================================================================== */}
   <Section id="section" space="md" class="bg-subtle">
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -595,7 +600,7 @@ const INDEX = [
         </div>
       </div>
 
-      <pre class="sg-code" tabindex="0"><code>{`<Section
+      <pre class="sg-code scroll-x" tabindex="0"><code>{`<Section
   as="section"     // section | div | header | footer | article | aside
   space="md"       // none | sm | md | lg
   spaceTop="nav"   // override the top only; adds "nav"
@@ -608,7 +613,7 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- Live dark section. Identical component API, one attribute. -->
+  {/* Live dark section. Identical component API, one attribute. */}
   <Section theme="dark" space="md">
     <div class="gap-md flex flex-col">
       <SectionHeader eyebrow='theme="dark"' heading="One attribute; every consumer remaps" headingLevel="h3" size="h3" split>
@@ -633,9 +638,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        07 ATOMS
-       =================================================================== -->
+       =================================================================== */}
   <Section id="atoms" space="md">
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -658,8 +663,8 @@ const INDEX = [
           <Button href="#atoms" variant="ghost" size="sm">Ghost sm</Button>
         </div>
         <div class="gap-sm flex flex-wrap items-center">
-          <Button href="#atoms" variant="primary" icon="arrow">icon="arrow" · renders &lt;a&gt;</Button>
-          <Button variant="secondary" icon="play" iconPosition="start">icon at start · renders &lt;button&gt;</Button>
+          <Button href="#atoms" variant="primary" icon="arrow">icon end · &lt;a&gt;</Button>
+          <Button variant="secondary" icon="play" iconPosition="start">icon start · &lt;button&gt;</Button>
           <Button href="https://example.com" variant="ghost" external>external</Button>
           <Button variant="secondary" disabled>disabled</Button>
         </div>
@@ -687,9 +692,9 @@ const INDEX = [
         </div>
       </div>
 
-      <!-- ============================================================
+      {/* ============================================================
            Form controls — every control, every state
-           ============================================================ -->
+           ============================================================ */}
       <div class="gap-md flex flex-col">
         <h3 class="text-h5 text-primary">Form controls</h3>
         <p class="text-sm text-secondary measure">
@@ -791,10 +796,10 @@ const INDEX = [
           }
         </div>
 
-        <!-- The tick and the dot are painted in --accent-contrast, which is white
+        {/* The tick and the dot are painted in --accent-contrast, which is white
              on light and near-black on dark. A control set that is only ever
              rendered on one ground is a control set whose inverse has never been
-             looked at — and this system has shipped exactly that bug before. -->
+             looked at — and this system has shipped exactly that bug before. */}
         <div data-theme="dark" class="bg-base border-line p-md gap-md flex flex-col rounded-md border">
           <p class="sg-meta">the same controls on theme="dark" — accent and accent-contrast both flip</p>
           <div class="gap-md grid md:grid-cols-2">
@@ -836,7 +841,7 @@ const INDEX = [
             option, and what no component can supply without also owning how the options are laid out. The first
             design that wants them in two columns would fork it.
           </p>
-          <pre class="sg-code" tabindex="0"><code>{`<fieldset class="field-group flex flex-col gap-sm">
+          <pre class="sg-code scroll-x" tabindex="0"><code>{`<fieldset class="field-group flex flex-col gap-sm">
   <legend class="text-sm text-secondary mb-xs">Engagement</legend>
   <FormField type="radio" name="engagement" value="project"  label="One-off project" />
   <FormField type="radio" name="engagement" value="retainer" label="Retainer" />
@@ -871,9 +876,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        08 BLOCKS & THE CARD PATTERN
-       =================================================================== -->
+       =================================================================== */}
   <Section id="blocks" space="md" class="bg-subtle">
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -889,7 +894,7 @@ const INDEX = [
           A card is a <strong class="text-primary">pattern, not a component</strong>. There is no generic Card
           shell and no card family in the base kit. The recipe is:
         </p>
-        <pre class="sg-code" tabindex="0"><code>bg-surface + border-line + rounded-md + p-sm | p-md</code></pre>
+        <pre class="sg-code scroll-x" tabindex="0"><code>bg-surface + border-line + rounded-md + p-sm | p-md</code></pre>
         <p class="text-sm text-secondary measure">
           Project cards — ProductCard, WorkCard, PricingCard — are instantiations of it. They never invent their
           own surface, border or radius treatment; if one needs a different treatment, that is a token decision
@@ -899,7 +904,7 @@ const INDEX = [
       </div>
 
       <div class="gap-md grid sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => <ItemCard item={item} headingLevel="h4" />)}
+        {items.map((item) => <ItemCard item={item} sizes={CARD_SIZES} headingLevel="h4" />)}
       </div>
 
       <div class="gap-2xs flex flex-col">
@@ -907,14 +912,14 @@ const INDEX = [
         <Faq items={faqItems} headingLevel="h4" />
       </div>
 
-      <!-- SELF-SKIP (§4.2). Both of these are rendered. Neither appears on the
+      {/* SELF-SKIP (§4.2). Both of these are rendered. Neither appears on the
            page, because neither has anything to show: the SectionHeader has no
            heading, eyebrow or lede, and the LogoStrip has no marks. A CMS-shaped
            schema has optional fields, and an optional field left empty must not
            leave a bordered empty box or a heading with nothing under it. The
            guard lives in the block because the block is the only thing that knows
            what "empty" means for it — the alternative is every page guarding every
-           block at the call site, which is where it gets forgotten. -->
+           block at the call site, which is where it gets forgotten. */}
       <SectionHeader heading="" />
       <LogoStrip label="Trusted by" logos={[]} />
 
@@ -952,9 +957,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        09 NAV DROPDOWN
-       =================================================================== -->
+       =================================================================== */}
   <Section id="nav" space="md">
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -984,9 +989,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        10 MOTION
-       =================================================================== -->
+       =================================================================== */}
   <Section id="motion" space="md" class="bg-subtle" reveal>
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -1045,9 +1050,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        11 PROSE
-       =================================================================== -->
+       =================================================================== */}
   <Section id="prose" space="md" width="narrow">
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -1105,9 +1110,9 @@ const INDEX = [
     </div>
   </Section>
 
-  <!-- ===================================================================
+  {/* ===================================================================
        12 DEMO COLLECTION
-       =================================================================== -->
+       =================================================================== */}
   <Section id="collection" space="md" spaceBottom="lg" class="bg-subtle">
     <div class="gap-lg flex flex-col">
       <SectionHeader
@@ -1118,21 +1123,32 @@ const INDEX = [
       />
 
       <div class="gap-md grid sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => <ItemCard item={item} headingLevel="h3" />)}
+        {items.map((item) => <ItemCard item={item} sizes={CARD_SIZES} headingLevel="h3" />)}
       </div>
 
-      <pre class="sg-code" tabindex="0"><code>{`// src/lib/items.ts — the only file that knows where the data came from
+      <pre class="sg-code scroll-x" tabindex="0"><code>{`// src/lib/items.ts — the only file that knows where the data came from
+slug: entry.data.slug,          // a field, never entry.id
 image: {
   src:    image.src,
-  width:  Number(image.attributes.width),
-  height: Number(image.attributes.height),
-  alt:    entry.data.coverAlt,   // non-null, enforced by the schema
+  srcset: image.srcSet.attribute, // candidates clamped to the source width
+  width:  fallback,               // NOT image.attributes.width: that is the
+  height: Math.round((fallback * cover.height) / cover.width), // width ASKED for
+  alt:    entry.data.coverAlt,    // non-null, enforced by the schema
 }`}</code></pre>
     </div>
   </Section>
 </BaseLayout>
 
 <style>
+  /* The smallest text this page draws: the system's own floor, --text-eyebrow's
+     12px minimum. The annotations once ran from 9.6px to 11.5px, and when the
+     form-atoms section added enough of them, more than 40% of the page's text was
+     under 12px — Lighthouse's legibility line, and best-practices fell to 96. The
+     page that demonstrates the type scale does not annotate below its floor. */
+  :global(:root) {
+    --sg-small: 0.75rem;
+  }
+
   /* Styleguide chrome only. Deliberately NOT in global.css: none of this ships
      to a client page, and a starter whose global stylesheet carries its own
      documentation furniture is a starter that ships it to every project.
@@ -1148,20 +1164,20 @@ image: {
 
   .sg-mono {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.72rem;
+    font-size: var(--sg-small);
     letter-spacing: 0.01em;
   }
 
   .sg-meta {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.72rem;
+    font-size: var(--sg-small);
     line-height: 1.55;
     color: var(--text-tertiary);
   }
 
   .sg-index-link {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.72rem;
+    font-size: var(--sg-small);
     color: var(--text-secondary);
     text-decoration: none;
     transition: color var(--transition-duration-spring-soft) var(--ease-spring-soft);
@@ -1183,7 +1199,7 @@ image: {
     inset-inline-start: 0.25rem;
     inset-block-end: 0.2rem;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.62rem;
+    font-size: var(--sg-small);
   }
 
   .sg-chip {
@@ -1198,7 +1214,7 @@ image: {
     width: 100%;
     border-collapse: collapse;
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.68rem;
+    font-size: var(--sg-small);
   }
 
   .sg-matrix :is(th, td) {
@@ -1228,7 +1244,7 @@ image: {
   .sg-matrix-ratio {
     display: block;
     margin-top: 0.15rem;
-    font-size: 0.6rem;
+    font-size: var(--sg-small);
   }
 
   .sg-bar {
@@ -1259,7 +1275,7 @@ image: {
   .sg-pad-label,
   .sg-diagram-content {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.62rem;
+    font-size: var(--sg-small);
     color: var(--text-tertiary);
   }
 
@@ -1282,7 +1298,7 @@ image: {
     border-radius: var(--radius-md);
     background-color: var(--bg-base);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.72rem;
+    font-size: var(--sg-small);
     line-height: 1.6;
     color: var(--text-secondary);
   }
@@ -1292,7 +1308,7 @@ image: {
     border: var(--border-width) solid var(--line-strong);
     border-radius: var(--radius-sm);
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.68rem;
+    font-size: var(--sg-small);
   }
 
   /* The gutter overlay: two dashed rules at exactly the container's content

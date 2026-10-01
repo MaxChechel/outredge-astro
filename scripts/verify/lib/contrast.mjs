@@ -191,3 +191,98 @@ export function lineMatrix(scopes) {
   }
   return rows;
 }
+
+/**
+ * Custom properties declared in a rule whose selector list includes `:root` or
+ * `html` — the declarations every unthemed region sees.
+ *
+ * Not `parseThemeScopes().root`, which is "everything outside a theme block" and
+ * so also holds tokens a COMPONENT declares on its own element (`--caret` on
+ * .faq-chevron). Those resolve on that element, inside whatever theme it sits in,
+ * and are correct by construction. Only a declaration made at the root resolves
+ * once, for the whole document.
+ */
+export function rootDeclarations(css) {
+  const out = new Map();
+  let selectorStart = 0;
+  for (let i = 0; i < css.length; i++) {
+    const c = css[i];
+    if (c === '}' || c === ';') {
+      selectorStart = i + 1;
+    } else if (c === '{') {
+      const selectors = css.slice(selectorStart, i).split(',').map((s) => s.trim());
+      selectorStart = i + 1;
+      if (!selectors.some((s) => s === ':root' || s === 'html')) continue;
+      const close = matchBrace(css, i);
+      if (close === -1) continue;
+      for (const [prop, value] of declarations(css.slice(i + 1, close))) out.set(prop, value);
+    }
+  }
+  return out;
+}
+
+/**
+ * DECLARATION SITES — two assertions the token matrix cannot make, because it
+ * resolves every var() chain inside the theme it is asked about. The browser
+ * does not.
+ *
+ * 1. A var() inside a custom property is substituted where the property is
+ *    DECLARED. `:root { --focus-ring: var(--text-primary) }` resolves once, at
+ *    the root, against the light value, and every dark region inherits that
+ *    result. So any root token whose value references a token a theme remaps
+ *    must be restated in THAT theme — or it silently keeps the root's value.
+ *    This shipped: a #1c2024 focus ring on a #1c2024 ground in every dark band,
+ *    while this matrix, resolving per theme, reported it fine.
+ *
+ * 2. Every token a theme block declares must also exist at the root. A token
+ *    declared only under [data-theme] does not exist on an unthemed region, so a
+ *    property using it is invalid at computed-value time and falls back to its
+ *    initial value — a hover background of `transparent`, with a correct token
+ *    value every time anyone checked it.
+ *
+ * One row per (token, theme) assertion, in the matrix's row shape.
+ */
+export function declarationSites(css) {
+  const scopes = parseThemeScopes(css);
+  const root = rootDeclarations(css);
+  const themes = Object.keys(scopes).filter((k) => k !== 'root');
+  const remapped = new Set(themes.flatMap((t) => [...scopes[t].keys()]));
+  const rows = [];
+
+  for (const [prop, value] of root) {
+    const refs = [...value.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)].map((m) => m[1]).filter((r) => remapped.has(r));
+    if (!refs.length) continue;
+    for (const theme of themes) {
+      const restated = scopes[theme].has(prop);
+      rows.push({
+        kind: 'restated',
+        theme,
+        token: prop,
+        pass: restated,
+        message: restated
+          ? null
+          : `\`${prop}\` is declared at :root as \`${value}\`, referencing \`${refs.join('`, `')}\`, ` +
+            `which [data-theme='${theme}'] re-declares — but [data-theme='${theme}'] does not restate \`${prop}\`. ` +
+            'A var() in a custom property resolves where it is DECLARED, so it keeps the :root value everywhere. ' +
+            `Restate \`${prop}\` inside the theme block.`,
+      });
+    }
+  }
+
+  for (const theme of themes) {
+    for (const prop of scopes[theme].keys()) {
+      const atRoot = root.has(prop);
+      rows.push({
+        kind: 'at root',
+        theme,
+        token: prop,
+        pass: atRoot,
+        message: atRoot
+          ? null
+          : `\`${prop}\` is declared in [data-theme='${theme}'] but not at :root. On any region without a ` +
+            'data-theme it does not exist, and a property using it falls back to its initial value. Declare it at :root.',
+      });
+    }
+  }
+  return rows;
+}

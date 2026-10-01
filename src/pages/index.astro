@@ -19,9 +19,17 @@ import Button from '../components/atoms/Button.astro';
 import CtaBanner from '../components/blocks/CtaBanner.astro';
 import ItemCard from '../components/blocks/ItemCard.astro';
 import { getItems } from '../lib/items';
+/* The styleguide route exists only in dev and styleguide builds; a production
+   page linking it ships a 404. */
+import { STYLEGUIDE } from '../data/navigation';
 import { SITE } from '../consts';
 
 const items = await getItems();
+
+/* The card grid below: one column, two from sm (30rem), three from lg (62rem)
+   inside the 82rem container. Each value slightly overstates the drawn width,
+   which costs a few KB; understating it ships a soft image. */
+const CARD_SIZES = '(min-width: 62rem) min(27rem, 33vw), (min-width: 30rem) 50vw, 100vw';
 ---
 
 <BaseLayout title={`${SITE.name} — the Astro starter`} description={SITE.description}>
@@ -36,7 +44,7 @@ const items = await getItems();
         split
       />
       <div class="gap-sm flex flex-wrap">
-        <Button href="/styleguide" variant="primary" icon="arrow">Open the styleguide</Button>
+        {STYLEGUIDE && <Button href="/styleguide" variant="primary" icon="arrow">Open the styleguide</Button>}
         <Button href="/contact" variant="secondary">Contact</Button>
       </div>
     </div>
@@ -51,7 +59,7 @@ const items = await getItems();
         split
       />
       <div class="gap-md grid sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => <ItemCard item={item} />)}
+        {items.map((item) => <ItemCard item={item} sizes={CARD_SIZES} />)}
       </div>
     </div>
   </Section>
@@ -61,7 +69,9 @@ const items = await getItems();
       theme="dark"
       heading="Start here"
       body="Copy the template, swap the primitives, verify, ship."
-      primary={{ label: 'Open the styleguide', href: '/styleguide' }}
+      primary={
+        STYLEGUIDE ? { label: 'Open the styleguide', href: '/styleguide' } : { label: 'Contact', href: SITE.contactHref }
+      }
     />
   </Section>
 </BaseLayout>

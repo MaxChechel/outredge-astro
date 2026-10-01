@@ -33,6 +33,13 @@ const items = defineCollection({
     z
       .object({
         title: z.string(),
+        /**
+         * A FIELD, NOT THE ENTRY ID. Every filename here happens to equal its
+         * slug, so a lookup by `entry.id` would work today and break silently the
+         * day a CMS loader makes the id a document id. Read `entry.data.slug`;
+         * never `entry.id`. A CMS query projects it (`"slug": slug.current`).
+         */
+        slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'lowercase words joined by hyphens'),
         summary: z.string(),
         cover: image(),
         /** Non-null alt, always (§7). Required by the schema, not by review. */

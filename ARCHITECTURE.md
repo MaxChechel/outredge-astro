@@ -455,7 +455,12 @@ Block rules:
 
 ### 4.3 Shells
 `BaseLayout` (head, fonts, skip link → real `#main`, canonical/og normalized in
-`src/lib/urls.ts`), `Nav`, `Footer`.
+`src/lib/urls.ts`, icons, structured data), `Nav`, `Footer`.
+
+- **Structured data is one `@graph`** in `BaseLayout` — Organization, WebSite and
+  the page, linked by `@id` — with the page type a closed union, because a typo
+  in structured data fails silently. **Every value is something the site already
+  says**: no address, phone, `sameAs` or `SearchAction` the pages do not back.
 
 - **One nav tree** — never parallel desktop/mobile markup. Mobile menu is native
   `<details>/<summary>`: keyboard + SR correct, zero JS; burger morph is CSS.
@@ -549,7 +554,11 @@ missing required slot **fails the build**.
     change nothing downstream.
   - **Components consume view models through one thin adapter per collection**
     (entry → props). Images are normalized in the adapter to
-    `{ src, width, height, alt }`. **Components never touch source-specific
+    `{ src, srcset, width, height, alt }`; the `sizes` that goes with the
+    srcset is passed by the component that lays the image out, because only
+    it knows how wide the slot is. A `slug` is a schema field, never the entry
+    id: the id is only the slug while the loader is `glob()` over files named
+    for it. **Components never touch source-specific
     types** — no `CollectionEntry<'x'>` in a component's props, ever. The adapter
     is the only file that knows where the data came from, and it is therefore the
     only file a CMS swap touches.
@@ -575,7 +584,11 @@ missing required slot **fails the build**.
 - **Fonts:** self-hosted, subset (fonttools), only applied weights, via Astro's
   `fonts` config (metric-matched fallbacks = CLS insurance). Reference: ~34 KB.
 - **Images:** `astro:assets`, explicit `width`/`height`, non-null `alt`, always.
-  Nothing loose in `public/` except favicons/OG.
+  Nothing loose in `public/` except favicons/OG. The icons are generated from
+  the brand mark by `scripts/build-icons.mjs`, run by hand and committed (the
+  `subset-fonts.py` precedent): one `favicon.svg` that answers the OS colour
+  scheme from inside the file, plus a flattened `favicon.ico` and
+  `apple-touch-icon.png`, because iOS renders alpha as black.
 - **Video:** single MP4/H.264 (no WebM), poster required (grab ~1.5 s, human-
   reviewed), `preload="none"`, IntersectionObserver play, **never bare
   `autoplay`**. Looping clips get a visible pause control (WCAG 2.2.2);
@@ -612,22 +625,64 @@ missing required slot **fails the build**.
   overflowing rects while the document itself does not scroll — so an unfiltered
   sweep reports phantom offenders for every mobile menu on the site, and a sweep
   nobody believes is a sweep nobody reads.
+- **Content fits its own box.** A word wider than its card does not scroll the
+  page; it overlaps or is clipped while the document stays exactly viewport-wide.
+  So every visible element whose content is wider than its box fails, unless it
+  scrolls or clips by design. The one escape hatch is `data-bleed`, written in
+  the markup on the element that deliberately extends past its box (a rail that
+  cancels the gutter), where a reviewer reads it — the checker does not guess
+  intent from geometry.
+- **A region that scrolls sideways says so.** At every width, an element that
+  actually scrolls horizontally carries the scroll shadow (`.scroll-x`, CSS
+  alone) or is marked `data-bleed`, where a cut-off edge is the affordance.
+  Touch platforms fade their scrollbars to nothing.
+- **Every navigation surface leads somewhere**: the mobile menu, each desktop
+  panel and the footer nav contain a link, and the mobile menu and the desktop
+  bar offer the same destinations. They render one data source through different
+  markup, and nothing else pairs them.
 - JS census of `dist/`, each byte justified.
 - **Token contrast matrix** — the contrast ratio of every text token on every
   background token in every theme (currently 3 × 3 × 2 = 18 pairs), computed
   **from the built CSS custom property values**. Any pair below 4.5:1 fails the
   run. This is what validates a client rebrand: replace the primitive ramp, run
   it, and the matrix says whether the new brand is shippable.
+- **Token declaration sites**, from the same built CSS. A `var()` inside a custom
+  property resolves where it is DECLARED, so a `:root` token derived from a token
+  a theme remaps must be restated in that theme, or it keeps the root's value in
+  every themed region; and every token a theme declares must also exist at
+  `:root`, or it is undefined wherever no theme is set. The matrix resolves per
+  theme and cannot see either.
+- **Every build finishes without a warning** — the styleguide build and both
+  production-shaped builds. A build that exits 0 can still have thrown work away:
+  the CSS minifier drops a rule it cannot parse, the glob loader drops a duplicate
+  entry, and each says so only in a warning. (The one exclusion is Node's own
+  type-stripping notice, which is about the runtime, not the build.)
 - `astro check` clean; axe-core (wcag2a/aa/21aa/22aa + best-practice) 0
   violations.
 - **Contract assertions** against the built HTML for rules the compiler cannot
-  enforce (see below).
+  enforce (see below). Rules about what SHIPS are asserted against the builds a
+  visitor can receive — production, and production with every env-gated feature
+  configured, because a feature switched on by an env var is invisible to a build
+  without it:
+  - every internal link resolves, and every fragment names an element on its
+    target page;
+  - the CSP in `_headers` matches the site **per directive, in both directions**:
+    everything the build loads is admitted, and everything admitted is loaded.
+    A third party is declared with every directive it needs;
+  - **no comments in anything served** — markup, CSS (legal comments included),
+    JS, SVG, XML, robots.txt. Source is commented freely; `.astro` templates use
+    `{/* */}`, never `<!-- -->`, which Astro ships from inside plain elements;
+  - every external `<script src>` is declared, by exact URL and with a reason,
+    in the JS census. No byte budget: someone else serves it.
 - **Referent assertion** before any rendered check: the port under test is
   serving this build, proven by comparison, not assumed.
 - **Keyboard operability**, driven with real key events: every enabled control
-  reachable by Tab, every focused control painting a visible ring (2.4.7), and no
-  element wearing an interactive ARIA role a native element already provides.
-  axe cannot press Tab; this is the half it does not cover.
+  reachable by Tab, every element that takes focus painting a ring that clears
+  **3:1 against the ground behind it** (2.4.7, measured as 1.4.11) — an outline
+  that exists is not an outline anyone can see — with at least one ring measured
+  inside a dark region, and no element wearing an interactive ARIA role a native
+  element already provides. axe cannot press Tab; this is the half it does not
+  cover.
 - Lighthouse mobile, homepage + heaviest page, behind real host config:
   **100/100/100/100 is the bar**, numbers recorded.
 

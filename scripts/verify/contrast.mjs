@@ -20,6 +20,7 @@ import {
   textMatrix,
   accentMatrix,
   lineMatrix,
+  declarationSites,
   AA,
 } from './lib/contrast.mjs';
 import { result, line, passed } from './lib/report.mjs';
@@ -43,7 +44,8 @@ function builtCss() {
 }
 
 export function contrast() {
-  const scopes = parseThemeScopes(builtCss());
+  const css = builtCss();
+  const scopes = parseThemeScopes(css);
 
   const groups = [
     { label: 'text × background', rows: textMatrix(scopes) },
@@ -72,6 +74,28 @@ export function contrast() {
     }
   }
 
+  /* Declaration sites: whether each token RESOLVES where the matrix assumes it
+     does. Reported as its own group, with its own count, because a pair can
+     clear 4.5:1 in the matrix and still never reach the page. */
+  const sites = declarationSites(css);
+  const siteFailures = sites.filter((r) => !r.pass);
+  const derived = new Set(sites.filter((r) => r.kind === 'restated').map((r) => r.token));
+  checks += sites.length;
+  failures += siteFailures.length;
+  notes.push(
+    `declaration sites: ${sites.length} assertions, ${siteFailures.length} failing — ` +
+      `${derived.size} :root token(s) derived from a themed token, each restated per theme; ` +
+      'every themed token declared at :root',
+  );
+  for (const r of siteFailures) notes.push(`    ${r.message}`);
+  if (!derived.size) {
+    /* The derived-token population is what this group exists for. If it drops
+       to zero the parser has stopped seeing :root, and every row above passes
+       over nothing. */
+    failures++;
+    notes.push('    found no :root token derived from a themed token — the :root parser is not seeing the root');
+  }
+
   /* A matrix that shrank is a matrix that stopped checking something. The core
      text group is fixed by §2.3 at three texts × three backgrounds × two themes;
      if a token is renamed out from under this check, resolveColor() throws — but
@@ -85,7 +109,7 @@ export function contrast() {
   return result('contrast matrix', {
     checks,
     failures,
-    unit: `token pairs at ${AA}:1 (and 3:1 for control boundaries)`,
+    unit: `assertions (pairs at ${AA}:1 or 3:1, declaration sites)`,
     notes,
   });
 }

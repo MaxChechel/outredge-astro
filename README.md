@@ -177,10 +177,23 @@ Replace the path data in `src/components/atoms/Logo.astro`, keeping the
 wordmarks go in `src/assets/clients/` for `ClientLogo`; narrow its `slug` prop
 from `string` to a union of the real filenames while you are there.
 
+Then the icons: put the client's MARK (not the wordmark) in
+`src/assets/brand/icon.svg` as one path in a square viewBox, and run
+`node scripts/build-icons.mjs`. It writes `favicon.svg` (one file that follows
+the OS colour scheme), `favicon.ico` and `apple-touch-icon.png` into `public/`
+in the ink of the primitive ramp, and you commit them. Re-run it after a rebrand
+of the ramp.
+
 ### 6. Content collections
 
 Define the real collections in `src/content.config.ts` from the `items` pattern,
 and delete `items` once nothing references it.
+
+- **`slug` is a schema field, never the entry id.** A filename that happens to
+  equal its slug makes an id lookup work today and fail silently the day a CMS
+  loader makes the id a document id. Note that Astro's `glob()` loader ALSO reads
+  a `slug` field as the entry id, and on a duplicate it keeps one entry and
+  drops the other with only a `[WARN]` in the build log.
 
 - **Write the Zod schema as the future CMS schema** — same field names, types,
   optionality. The point is that swapping `glob()` for a Sanity loader later

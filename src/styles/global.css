@@ -585,6 +585,11 @@
 
   --accent: var(--accent-500);
   --accent-contrast: var(--gray-0);
+
+  /* Derived roles, restated. See the note in the dark block. */
+  --focus-ring: var(--text-primary);
+  --selection-bg: var(--text-primary);
+  --selection-text: var(--bg-base);
 }
 
 /* Dark. Derived per the six rules above; measured ratios in the comments are
@@ -611,6 +616,16 @@
   /* Re-picked, not re-used (rule 5). The light accent measures 1.4:1 here. */
   --accent: var(--accent-300);       /* 5.37 : 1 on bg-surface */
   --accent-contrast: var(--gray-950);/* 7.12 : 1 on the accent fill */
+
+  /* Derived roles, RESTATED rather than inherited. A var() inside a custom
+     property is substituted where the property is DECLARED, so the :root
+     declarations resolved once, against the light --text-primary, and every
+     dark region inherited that: a #1c2024 focus ring on a #1c2024 ground, 1:1.
+     Any :root token whose value points at a token this block remaps must be
+     restated here, or it silently keeps its light value. */
+  --focus-ring: var(--text-primary);
+  --selection-bg: var(--text-primary);
+  --selection-text: var(--bg-base);
 
   color-scheme: dark;
 
@@ -654,6 +669,13 @@
     line-height: var(--leading-body);
     letter-spacing: var(--tracking-normal);
     text-wrap: pretty;
+    /* An unbreakable token — a product name, an address, a URL — otherwise
+       pushes straight out of its box. It does not scroll the page, so the
+       page-level sweep never sees it. `break-word` only breaks a word that has
+       no other way to fit, and it inherits. Do NOT add hyphenate-limit-chars:
+       forbidding the dictionary's break hands the word to this rule, which
+       then orphans a single letter. */
+    overflow-wrap: break-word;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -686,6 +708,12 @@
   a:not([class]) {
     text-decoration: underline;
     text-underline-offset: 0.2em;
+  }
+
+  /* Code has no word boundaries worth waiting for: an env var or a path breaks
+     anywhere rather than overflowing. */
+  code, kbd, samp {
+    overflow-wrap: anywhere;
   }
 
   img, picture, video, canvas, svg {
@@ -1389,7 +1417,13 @@
         display var(--transition-duration-spring-soft) allow-discrete;
     }
 
-    .select-wrap select::picker(select):popover-open {
+    /* `select:open`, not `::picker(select):popover-open`. Only user-action
+       pseudo-classes may follow a pseudo-element, so Lightning CSS rejected the
+       old selector and DROPPED this rule from the build — with a warning on every
+       run that nothing read. The popup's base state above is `opacity: 0`, so
+       every select in current Chrome opened an invisible list (measured: `:open`
+       true, picker opacity 0). The build now fails on that warning. */
+    .select-wrap select:open::picker(select) {
       opacity: 1;
       transform: none;
 
@@ -1439,6 +1473,54 @@
   }
 }
 
+/* --- Horizontal scroller ------------------------------------------------- */
+@layer components {
+  /* A region that scrolls sideways must SAY so. Touch platforms draw scrollbars
+     as an overlay that fades to nothing when idle, so a wide table on a phone
+     shows a cell cut mid-value and no sign that there is more; a reader stops at
+     the crop.
+
+     The four-layer scroll shadow, CSS alone: two COVER layers painted in the
+     region's own ground with `background-attachment: local`, so they travel with
+     the content, parked over two SHADOW layers fixed to the scrollport. At the
+     start, the start cover sits on the start shadow and hides it; scroll, and it
+     moves away. The far shadow disappears the same way at the far end. No
+     script, no resize listener, no state: the shadow is a fact about the scroll
+     position because it IS the scroll position.
+
+     The ground is `--scroll-ground` (default --bg-base), for a scroller on
+     another ground — set it ON THE ELEMENT, where it resolves per theme. The
+     shadow ink is mixed inline, not stored in a :root token: a var() in a custom
+     property resolves where it is declared, so a stored mix would paint the
+     light theme's ink in every dark region.
+
+     The sweep enforces it: an element that actually scrolls sideways must carry
+     these local layers, or be marked `data-bleed` (a rail whose cut-off edge is
+     the affordance). Keyboard users need `tabindex="0"` and a name on the
+     region as well — that one is axe's. */
+  .scroll-x {
+    overflow-x: auto;
+    background-color: var(--scroll-ground, var(--bg-base));
+    background-image:
+      linear-gradient(to right, var(--scroll-ground, var(--bg-base)) 30%, transparent),
+      linear-gradient(to left, var(--scroll-ground, var(--bg-base)) 30%, transparent),
+      linear-gradient(to right, color-mix(in oklab, var(--text-primary) 14%, transparent), transparent),
+      linear-gradient(to left, color-mix(in oklab, var(--text-primary) 14%, transparent), transparent);
+    background-position:
+      0 0,
+      100% 0,
+      0 0,
+      100% 0;
+    background-repeat: no-repeat;
+    background-size:
+      3rem 100%,
+      3rem 100%,
+      1rem 100%,
+      1rem 100%;
+    background-attachment: local, local, scroll, scroll;
+  }
+}
+
 /* --- FAQ disclosure ------------------------------------------------------ */
 @layer components {
   .faq-item > summary::-webkit-details-marker {
@@ -1446,18 +1528,37 @@
   }
 
   /* A rotated corner, drawn in CSS so it costs no asset and follows
-     currentColor under any theme. */
+     currentColor under any theme.
+
+     The corner is drawn in ::before, inside a box sized to its ROTATED
+     footprint. A square of side s turned 45° spans s·√2, and `transform` —
+     which does not move layout — does enlarge the scrollable overflow area, so
+     a box sized to the unrotated square leaks ~1.5px past its own edge on
+     every <summary>. Width: s·√2, the widest the square gets at any angle, so
+     the open/close turn stays inside too. Height: s·√2 plus the ±25% nudge
+     that optically centres the corner. Same pattern as .nav-caret. */
   .faq-chevron {
+    --caret: 0.5rem;
+    position: relative;
     display: block;
-    width: 0.5rem;
-    height: 0.5rem;
+    width: calc(var(--caret) * 1.4143);
+    height: calc(var(--caret) * 1.9143);
+  }
+
+  .faq-chevron::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: var(--caret);
+    height: var(--caret);
     border-right: var(--border-width) solid var(--text-tertiary);
     border-bottom: var(--border-width) solid var(--text-tertiary);
     transform: translateY(-25%) rotate(45deg);
     transition: transform var(--transition-duration-spring-soft) var(--ease-spring-soft);
   }
 
-  .faq-item[open] .faq-chevron {
+  .faq-item[open] .faq-chevron::before {
     transform: translateY(25%) rotate(225deg);
   }
 
@@ -1600,17 +1701,30 @@
       visibility 0s;
   }
 
+  /* Drawn in ::before inside a box sized to its rotated footprint — the
+     reasoning is at .faq-chevron. */
   .nav-caret {
+    --caret: 0.4rem;
+    position: relative;
     display: block;
-    width: 0.4rem;
-    height: 0.4rem;
+    width: calc(var(--caret) * 1.4143);
+    height: calc(var(--caret) * 1.9143);
+  }
+
+  .nav-caret::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: var(--caret);
+    height: var(--caret);
     border-right: var(--border-width) solid currentcolor;
     border-bottom: var(--border-width) solid currentcolor;
     transform: translateY(-25%) rotate(45deg);
     transition: transform var(--transition-duration-spring-soft) var(--ease-spring-soft);
   }
 
-  [aria-expanded='true'] .nav-caret {
+  [aria-expanded='true'] .nav-caret::before {
     transform: translateY(25%) rotate(225deg);
   }
 
